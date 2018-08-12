@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://www.purebasic.com/namespace" version="1.0" creator="PureBasic 5.62 (Windows - x64)">
+  <section name="config">
+    <options closefiles="1" openmode="0" name="Test CSVFiles"/>
+  </section>
+  <section name="data">
+    <explorer view="" pattern="0"/>
+    <log show="1"/>
+    <lastopen date="2018-08-11 16:23" user="Heribert" host="HERIBERT_2"/>
+  </section>
+  <section name="files">
+    <file name="..\HF_CSVFiles.pbi">
+      <config load="0" scan="1" panel="1" warn="1" lastopen="1" panelstate="++"/>
+      <fingerprint md5="ac1158311162506fdcd3af4f00e165a6"/>
+    </file>
+    <file name="Test_CSVFiles.pb">
+      <config load="0" scan="1" panel="1" warn="1" lastopen="1" panelstate="+"/>
+      <fingerprint md5="460d8385b1eebd8d3504360986382566"/>
+    </file>
+  </section>
+  <section name="targets">
+    <target name="Standard-Ziel" enabled="1" default="1">
+      <inputfile value="Test_CSVFiles.pb"/>
+      <outputfile value="Test_CSVFilesb.exe"/>
+      <compiler version="PureBasic 5.62 (Windows - x64)"/>
+      <executable value="Test_WPDLib.exe"/>
+      <options xpskin="1" debug="1"/>
+      <format exe="console" cpu="0"/>
+    </target>
+  </section>
+</project>
