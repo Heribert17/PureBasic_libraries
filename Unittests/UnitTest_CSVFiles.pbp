@@ -7,15 +7,15 @@
   <section name="data">
     <explorer view="" pattern="0"/>
     <log show="1"/>
-    <lastopen date="2018-08-13 14:43" user="Heribert" host="HERIBERT_2"/>
+    <lastopen date="2018-08-13 18:27" user="Heribert" host="HERIBERT_2"/>
   </section>
   <section name="files">
     <file name="..\HF_CSVFiles.pbi">
-      <config load="0" scan="1" panel="1" warn="1" lastopen="1" panelstate="++"/>
-      <fingerprint md5="9b68ad808e4eeb568382626a4e12f8e2"/>
+      <config load="0" scan="1" panel="1" warn="1" lastopen="0" panelstate="++"/>
+      <fingerprint md5="892793c579d042ccb0bf74f663c4a8b0"/>
     </file>
     <file name="UnitTest_CSVFiles.pb">
-      <config load="0" scan="1" panel="1" warn="1" lastopen="1" panelstate="+"/>
+      <config load="0" scan="1" panel="1" warn="1" lastopen="0" panelstate="+"/>
       <fingerprint md5="2b4aecab7f18c31538c090f73d7783e0"/>
     </file>
   </section>

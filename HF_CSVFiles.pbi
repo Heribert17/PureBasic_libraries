@@ -139,7 +139,7 @@ Module HF_CSVFiles
     ElseIf File = #PB_Any
       File = i
     EndIf
-    ; get the headerfields form Parameter or from file
+    ; get the headerfields from Parameter or from file
     If HeaderFields <> ""
       HF_String::splitString(CSVFiles(Str(File))\Headerfields(), HeaderFields, ";")
     Else
@@ -219,7 +219,7 @@ Module HF_CSVFiles
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 56
-; FirstLine = 27
+; CursorPosition = 141
+; FirstLine = 140
 ; Folding = --
 ; EnableXP
