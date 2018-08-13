@@ -1,8 +1,7 @@
-;   Description: Simple Routine to test CSVFiles Lib
+;   Description: Simple Routine to test HF_CSVFiles
 ;            OS: Windows
 ;        Author: Heribert Füchtenhans
 ;       Version: 1.0
-;  Used Modules: HF_String.pbi
 ; -----------------------------------------------------------------------------
 
 ; MIT License
@@ -174,6 +173,7 @@ Input()
 CloseConsole()
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 1
+; CursorPosition = 171
+; FirstLine = 131
 ; Folding = -
 ; EnableXP
