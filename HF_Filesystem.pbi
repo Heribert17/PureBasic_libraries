@@ -116,20 +116,20 @@ Module HF_Filesystem
   
   
   Procedure.b CompressDirectoryToZipWalkRecursive(StartQuellverzeichnis.s, Quellverzeichnis.s, PackerID.i)
-    Protected rwert.b=#True, Id.i, Vollername.s, Archivname.s
+    Protected rwert.b=#True, Id.i, Fullfilename.s, Archivname.s
     
     Id = ExamineDirectory(#PB_Any, Quellverzeichnis, "*")
     If Id <> 0
       While NextDirectoryEntry(Id)
-        Vollername = JoinPath(Quellverzeichnis, DirectoryEntryName(Id))
+        Fullfilename = JoinPath(Quellverzeichnis, DirectoryEntryName(Id))
         If DirectoryEntryType(Id) = #PB_DirectoryEntry_File
-          Archivname = Mid(Vollername, Len(StartQuellverzeichnis)+1)
+          Archivname = Mid(Fullfilename, Len(StartQuellverzeichnis)+1)
           If Left(Archivname, 1) = "\" : Archivname = Mid(Archivname, 2) : EndIf
-          If AddPackFile(PackerID, Vollername, Archivname) = 0
+          If AddPackFile(PackerID, Fullfilename, Archivname) = 0
             rwert = #False
           EndIf
         ElseIf DirectoryEntryName(Id) <> "." And DirectoryEntryName(Id) <> ".."
-          If Not CompressDirectoryToZipWalkRecursive(StartQuellverzeichnis, Vollername, PackerID) : rwert = #False : EndIf
+          If Not CompressDirectoryToZipWalkRecursive(StartQuellverzeichnis, Fullfilename, PackerID) : rwert = #False : EndIf
         EndIf
       Wend
       FinishDirectory(Id)
@@ -248,23 +248,23 @@ Module HF_Filesystem
   
 
   Procedure.s GetNewestFilename(Searchpattern.s)
-    Protected GefundeneDatei.s="", LastWriteTime.i=0, Pfad.s, DirectoryHandle.i
+    Protected FoundFileName.s="", LastWriteTime.i=0, Path.s, DirectoryHandle.i
     
-    Pfad = GetPathPart(Searchpattern)
-    DirectoryHandle = ExamineDirectory(#PB_Any, Pfad, GetFilePart(Searchpattern))
+    Path = GetPathPart(Searchpattern)
+    DirectoryHandle = ExamineDirectory(#PB_Any, Path, GetFilePart(Searchpattern))
     If DirectoryHandle
       While NextDirectoryEntry(DirectoryHandle)
         If DirectoryEntryDate(DirectoryHandle, #PB_Date_Modified) > LastWriteTime
           LastWriteTime = DirectoryEntryDate(DirectoryHandle, #PB_Date_Modified)
-          GefundeneDatei = DirectoryEntryName(DirectoryHandle)
+          FoundFileName = DirectoryEntryName(DirectoryHandle)
         EndIf
       Wend
       FinishDirectory(DirectoryHandle)
     EndIf
-    If GefundeneDatei = ""
+    If FoundFileName = ""
       ProcedureReturn ""
     Else
-      ProcedureReturn HF_Filesystem::JoinPath(Pfad, GefundeneDatei)
+      ProcedureReturn HF_Filesystem::JoinPath(Path, FoundFileName)
     EndIf
   EndProcedure
   
@@ -297,50 +297,50 @@ Module HF_Filesystem
   
   
   Procedure.s GetFilenameWithoutDrive(Filename.s)
-    Protected Dateiname.s, Pos.i, Count.i = 0
+    Protected NewFilename.s, Pos.i, Count.i = 0
     
     If Left(Filename, 2) = "\\"     ; UNC Name
       For Pos = 1 To Len(Filename)
         If Mid(Filename, Pos, 1) = "\" : Count + 1 : EndIf
         If Count = 4 : Break : EndIf
       Next
-      Dateiname = Mid(Filename, Pos+1)
+      NewFilename = Mid(Filename, Pos+1)
     Else
       If Mid(Filename, 2, 1) = ":"
-        Dateiname = Mid(Filename, 3)
+        NewFilename = Mid(Filename, 3)
       Else
-        Dateiname = Filename
+        NewFilename = Filename
       EndIf
     EndIf
-    ProcedureReturn Dateiname
+    ProcedureReturn NewFilename
   EndProcedure
   
   
   Procedure.b DeleteOldFiles(DirToSearch.s, FileLastWriteTimeLessThen.i, DeleteEmptyDirs.b=#False)
-    Protected rwert=#True, Id.i, TestId.i, Vollername.s, Count.i
+    Protected rwert=#True, Id.i, TestId.i, Fullfilename.s, Count.i
     
     Id = ExamineDirectory(#PB_Any, DirToSearch, "*")
     If Id <> 0
       While NextDirectoryEntry(Id)
-        Vollername = JoinPath(DirToSearch, DirectoryEntryName(Id))
+        Fullfilename = JoinPath(DirToSearch, DirectoryEntryName(Id))
         If DirectoryEntryType(Id) = #PB_DirectoryEntry_File
           If DirectoryEntryDate(Id, #PB_Date_Modified) < FileLastWriteTimeLessThen
-            DeleteFile(Vollername)
+            DeleteFile(Fullfilename)
           EndIf
         ElseIf DirectoryEntryName(Id) <> "." And DirectoryEntryName(Id) <> ".."
-          If Not DeleteOldFiles(Vollername, FilelastWriteTimeLessThen)
+          If Not DeleteOldFiles(Fullfilename, FilelastWriteTimeLessThen)
             rwert = #False
           Else
             If DeleteEmptyDirs
               ; If directory is empty, delete it
-              TestId = ExamineDirectory(#PB_Any, Vollername, "*")
+              TestId = ExamineDirectory(#PB_Any, Fullfilename, "*")
               If TestId <> 0
                 Count = 0
                 While NextDirectoryEntry(TestId)
                   If DirectoryEntryType(TestId) = #PB_DirectoryEntry_Directory And (DirectoryEntryName(TestId) <> "." Or DirectoryEntryName(TestId) <> "..") : Continue : EndIf
                   Count + 1
                 Wend
-                If Count = 0 : DeleteDirectory(Vollername, "") : EndIf
+                If Count = 0 : DeleteDirectory(Fullfilename, "") : EndIf
               EndIf
             EndIf
           EndIf
@@ -657,7 +657,7 @@ Module HF_Filesystem
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 657
-; FirstLine = 425
+; CursorPosition = 310
+; FirstLine = 295
 ; Folding = ----
 ; EnableXP
