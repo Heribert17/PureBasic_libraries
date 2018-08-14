@@ -8,6 +8,7 @@
 ; OS:      Windows
 ;
 ; Requirements: Windows 10
+;               Icons in folder .\Icons
 ; ---------------------------------------------------------------------------------------
 ;
 ; MIT License
@@ -1665,6 +1666,6 @@ Module HF_WPDLib
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 34
+; CursorPosition = 10
 ; Folding = ------
 ; EnableXP

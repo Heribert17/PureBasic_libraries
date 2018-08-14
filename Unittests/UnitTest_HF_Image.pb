@@ -7,7 +7,8 @@
 ; OS:      Windows, Linux, Mac
 ;
 ; Requirements: HF_Image.pbi
-;               Needs pictures in .\Image directory
+;               Needs pictures in .\Image directory. Removed my own picture due to size
+;               and license.
 ; ---------------------------------------------------------------------------------------
 ;
 ; MIT License
@@ -106,7 +107,6 @@ Input()
 CloseConsole()
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 92
-; FirstLine = 64
+; CursorPosition = 10
 ; Folding = -
 ; EnableXP
