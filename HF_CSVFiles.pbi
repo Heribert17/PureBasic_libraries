@@ -1,10 +1,14 @@
-﻿;   Description: Modul to read CSV files
-;            OS: Windows, Linux, Mac
-;        Author: Heribert Füchtenhans
-;       Version: 1.0
-;  Used Modules: HF_String.pbi
-; -----------------------------------------------------------------------------
-
+﻿; ---------------------------------------------------------------------------------------
+;
+; Modul to read CSV files
+;
+; Author:  Heribert Füchtenhans
+; Version: 1.0
+; OS:      Windows, Linux, Mac
+;
+; Requirements: HF_String.pbi
+; ---------------------------------------------------------------------------------------
+;
 ; MIT License
 ; 
 ; Copyright (c) 2018 Heribert Füchtenhans
@@ -26,6 +30,7 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
+; ---------------------------------------------------------------------------------------
 
 
 XIncludeFile "HF_String.pbi"
@@ -219,7 +224,7 @@ Module HF_CSVFiles
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 141
-; FirstLine = 140
+; CursorPosition = 33
+; FirstLine = 22
 ; Folding = --
 ; EnableXP

@@ -1,9 +1,14 @@
-﻿;   Description: Modul with procedure für directory and file manipulation
-;            OS: Windows
-;        Author: Heribert Füchtenhans
-;       Version: 3.0
-; -----------------------------------------------------------------------------
-
+﻿; ---------------------------------------------------------------------------------------
+;
+; Modul with procedure für directory and file manipulation
+;
+; Author:  Heribert Füchtenhans
+; Version: 3.0
+; OS:      Windows
+;
+; Requirements:
+; ---------------------------------------------------------------------------------------
+;
 ; MIT License
 ; 
 ; Copyright (c) 2018 Heribert Füchtenhans
@@ -25,6 +30,7 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
+; ---------------------------------------------------------------------------------------
 
 
 DeclareModule HF_Filesystem
@@ -657,7 +663,5 @@ Module HF_Filesystem
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 310
-; FirstLine = 295
 ; Folding = ----
 ; EnableXP

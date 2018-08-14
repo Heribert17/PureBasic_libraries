@@ -1,9 +1,14 @@
-﻿;   Description: Some windows functions
-;            OS: Windows
-;        Author: Heribert Füchtenhans
-;       Version: 2.0
-; -----------------------------------------------------------------------------
-
+﻿; ---------------------------------------------------------------------------------------
+;
+; Some Windows functions
+;
+; Author:  Heribert Füchtenhans
+; Version: 2.0
+; OS:      Windows
+;
+; Requirements: Windows 8 and above
+; ---------------------------------------------------------------------------------------
+;
 ; MIT License
 ; 
 ; Copyright (c) 2018 Heribert Füchtenhans
@@ -25,7 +30,7 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
-
+; ---------------------------------------------------------------------------------------
 
 
 DeclareModule HF_Windows
@@ -232,7 +237,6 @@ Module HF_Windows
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 232
-; FirstLine = 190
+; CursorPosition = 8
 ; Folding = --
 ; EnableXP

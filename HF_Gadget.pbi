@@ -1,9 +1,14 @@
-﻿;   Description: Gadget functions
-;            OS: Windows only
-;        Author: Heribert Füchtenhans
-;       Version: 1.0
-; -----------------------------------------------------------------------------
-
+﻿; ---------------------------------------------------------------------------------------
+;
+; Gadget functions
+;
+; Author:  Heribert Füchtenhans
+; Version: 1.0
+; OS:      Windows
+;
+; Requirements:
+; ---------------------------------------------------------------------------------------
+;
 ; MIT License
 ; 
 ; Copyright (c) 2018 Heribert Füchtenhans
@@ -25,6 +30,7 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
+; ---------------------------------------------------------------------------------------
 
 
 DeclareModule HF_Gadget
@@ -173,7 +179,7 @@ Module HF_Gadget
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 169
-; FirstLine = 131
+; CursorPosition = 33
+; FirstLine = 25
 ; Folding = --
 ; EnableXP

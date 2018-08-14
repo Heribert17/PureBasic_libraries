@@ -1,12 +1,17 @@
-﻿;   Description: Simple Routine to test HF_Filesystem
-;            OS: Windows
-;        Author: Heribert Füchtenhans
-;       Version: 1.0
-; -----------------------------------------------------------------------------
-
+﻿; ---------------------------------------------------------------------------------------
+;
+; Test procedures for HF_Filesystem
+;
+; Author:  Heribert Füchtenhans
+; Version: 1.0
+; OS:      Windows
+;
+; Requirements: HF_Filesystem.pbi
+; ---------------------------------------------------------------------------------------
+;
 ; MIT License
 ; 
-; Copyright (c) 2014-2018 Heribert Füchtenhans
+; Copyright (c) 2018 Heribert Füchtenhans
 ; 
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
 ; of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +30,7 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
+; ---------------------------------------------------------------------------------------
 
 
 IncludeFile "..\HF_Filesystem.pbi"
@@ -124,7 +130,7 @@ Input()
 CloseConsole()
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 117
-; FirstLine = 83
+; CursorPosition = 33
+; FirstLine = 24
 ; Folding = -
 ; EnableXP

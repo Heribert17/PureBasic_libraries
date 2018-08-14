@@ -1,9 +1,14 @@
-﻿;   Description: Logging Funktionen for PureBasic
-;            OS: Windows, Linux, Mac
-;        Author: Heribert Füchtenhans
-;       Version: 3.0
-; -----------------------------------------------------------------------------
-
+﻿; ---------------------------------------------------------------------------------------
+;
+; Logging Funktionen for PureBasic
+;
+; Author:  Heribert Füchtenhans
+; Version: 3.0
+; OS:      Windows, Linux, Mac
+;
+; Requirements:
+; ---------------------------------------------------------------------------------------
+;
 ; MIT License
 ; 
 ; Copyright (c) 2018 Heribert Füchtenhans
@@ -25,6 +30,7 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
+; ---------------------------------------------------------------------------------------
 
 
 DeclareModule HF_Logging
@@ -250,7 +256,7 @@ Module HF_Logging
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 250
-; FirstLine = 208
+; CursorPosition = 33
+; FirstLine = 20
 ; Folding = ---
 ; EnableXP
