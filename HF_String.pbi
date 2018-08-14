@@ -42,6 +42,8 @@ DeclareModule HF_String
   Declare   splitString(List StringParts.s(), ToSplit.s, Delimiter.s, MaxSplits.i=-1, WithSpaceTrim.b=#True)
   ; Splits a string using Delimter into parts an stores them in StringParts()
   
+  Declare.s getMitLicenseText(Year.s, CopyrightHolder.s)
+  ; return the MIT Lizenze text
 EndDeclareModule
 
 
@@ -122,10 +124,37 @@ Module HF_String
     Wend
   EndProcedure
   
+  
+  Procedure.s getMitLicenseText(Year.s, CopyrightOwner.s)
+    Protected NewLine.s = #CRLF$
+    
+    CompilerSelect #PB_Compiler_OS
+      CompilerCase #PB_OS_MacOS
+        NewLine = #CR$
+      CompilerCase #PB_OS_Linux
+        NewLine = #LF$
+    CompilerEndSelect
+    
+    ProcedureReturn ("Copyright " + Year + " " + CopyrightOwner + NewLine) +
+                NewLine +
+                "Permission is hereby granted, free of charge, To any person obtaining a copy of this software And associated" + NewLine +
+                "documentation files (the 'Software'), To deal in the Software without restriction, including without limitation" + NewLine +
+                "the rights To use, copy, modify, merge, publish, distribute, sublicense, And/Or sell copies of the Software," + NewLine +
+                "And To permit persons To whom the Software is furnished To do so, subject To the following conditions:" + NewLine +
+                 NewLine +
+                "The above copyright notice And this permission notice shall be included in all copies Or substantial portions of the Software." + NewLine +
+                 NewLine +
+                "THE SOFTWARE IS PROVIDED 'As IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS Or IMPLIED, INCLUDING BUT Not LIMITED To" + NewLine +
+                "THE WARRANTIES OF MERCHANTABILITY, FITNESS For A PARTICULAR PURPOSE And NONINFRINGEMENT. IN NO EVENT SHALL" + NewLine +
+                "THE AUTHORS Or COPYRIGHT HOLDERS BE LIABLE For ANY CLAIM, DAMAGES Or OTHER LIABILITY, WHETHER IN AN ACTION OF" + NewLine +
+                "CONTRACT, TORT Or OTHERWISE, ARISING FROM, OUT OF Or IN CONNECTION With THE SOFTWARE Or THE USE Or OTHER DEALINGS" + NewLine +
+                "IN THE SOFTWARE."
+  EndProcedure
+  
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 33
-; FirstLine = 20
+; CursorPosition = 145
+; FirstLine = 112
 ; Folding = -
 ; EnableXP
