@@ -85,8 +85,8 @@ For i = 0 To 30000
   HF_Logging::WriteLogger(Str(i) + " Test13413746732657367836478637846173647849832746987324636473647632746327647326473647746179463798267")
 Next
 Assert(FileSize(".\Test\Test.log") >= 0, "he log file wasn't created.")
-Assert(FileSize(".\Test\Test.log.3") >= 0, "Logfile *.3 should be there but isn't.")
-Assert(FileSize(".\Test\Test.log.4") = -1, "Logfile *.4 should be there but isn't.")
+Assert(FileSize(".\Test\Test.log.2") >= 0, "Logfile *.2 should be there but isn't.")
+Assert(FileSize(".\Test\Test.log.3") = -1, "Logfile *.3 should be there but isn't.")
 after()
 
 ; Write multiline entry
@@ -96,7 +96,7 @@ ReadFile(0, ".\Test\Test.log", #PB_File_SharedRead | #PB_File_SharedWrite)
 i = 0
 While Eof(0) = 0
   Line = ReadString(0)
-  Assert(StringField(Line, 3, " | ")  = ("Test" + Str(i)), "The multiline text hasn't been written correctly.")
+  Assert(StringField(Line, 3, Chr(9))  = ("Test" + Str(i)), "The multiline text hasn't been written correctly.")
   Assert(i < 3, "There are more then 3 lines in the log file")
   i + 1
 Wend
@@ -110,7 +110,7 @@ HF_Logging::GetSavedLogger(Logeintraege())
 i = 0
 ForEach Logeintraege()
   Line = Logeintraege()
-  Assert(StringField(Line, 3, " | ")  = ("Test" + Str(i)), "The multiline text hasn't been stored correctly.")
+  Assert(StringField(Line, 3, Chr(9))  = ("Test" + Str(i)), "The multiline text hasn't been stored correctly.")
   Assert(i < 3, "There are more then 3 lines stored in memory")
   i + 1
 Next
@@ -121,7 +121,7 @@ Input()
 CloseConsole()
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 33
-; FirstLine = 28
+; CursorPosition = 112
+; FirstLine = 79
 ; Folding = -
 ; EnableXP

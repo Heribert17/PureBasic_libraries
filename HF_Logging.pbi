@@ -3,10 +3,13 @@
 ; Logging Funktionen for PureBasic
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 3.0
+; Version: 3.1
 ; OS:      Windows, Linux, Mac
 ;
 ; Requirements:
+; Changes:
+;   Field separator changed from " | " to chr(9) [Tab]. This makes it easier to import
+;   Log file into Excel.
 ; ---------------------------------------------------------------------------------------
 ;
 ; MIT License
@@ -197,11 +200,11 @@ Module HF_Logging
         CompilerIf #PB_Compiler_OS = #PB_OS_Windows
           Protected Info.SYSTEMTIME
           GetLocalTime_(Info)
-          LeadIn = LSet(StrLoglevel, 7) + " | "+ Str(Info\wYear) + "-" + RSet(Str(Info\wMonth), 2, "0") + "-" + RSet(Str(Info\wDay), 2, "0") + " " + 
+          LeadIn = LSet(StrLoglevel, 7) + Chr(9) + Str(Info\wYear) + "-" + RSet(Str(Info\wMonth), 2, "0") + "-" + RSet(Str(Info\wDay), 2, "0") + " " + 
                    RSet(Str(Info\wHour), 2, "0") + ":" + RSet(Str(Info\wMinute), 2, "0") + ":" + RSet(Str(Info\wSecond), 2, "0") + "," +
-                   RSet(Str(Info\wMilliseconds), 3, "0") + " | "
+                   RSet(Str(Info\wMilliseconds), 3, "0") + Chr(9)
         CompilerElse
-          LeadIn = LSet(StrLoglevel, 7) + " | "+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss, Date()) + " | "
+          LeadIn = LSet(StrLoglevel, 7) + "chr(9)+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss, Date()) + Chr(9)
         CompilerEndIf
       EndIf
       ; normalise line endings for splitting
@@ -256,7 +259,6 @@ Module HF_Logging
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 33
-; FirstLine = 20
+; CursorPosition = 11
 ; Folding = ---
 ; EnableXP
