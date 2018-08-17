@@ -1,5 +1,5 @@
 # PureBasic_libraries
-PBI files for PureBasic. Needs PureBasic 5.62 or newer
+PBI Librarie files for PureBasic. Needs PureBasic 5.62 or newer
 
 HF_CSVFiles:   Read CSV files incl. autodetection of column separators
 
