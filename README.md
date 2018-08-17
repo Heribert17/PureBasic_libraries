@@ -19,3 +19,4 @@ HF_Windows:    Windows spezific functione, Output and time functions
 HF_WPDLib:     Access to the Windows WPD API to access MTP devices (smartphones, MP3 player, etc.)
 
 The folder Unittest contains some simple routines to check functionallity.
+
