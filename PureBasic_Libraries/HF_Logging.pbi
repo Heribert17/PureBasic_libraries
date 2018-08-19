@@ -200,11 +200,11 @@ Module HF_Logging
         CompilerIf #PB_Compiler_OS = #PB_OS_Windows
           Protected Info.SYSTEMTIME
           GetLocalTime_(Info)
-          LeadIn = LSet(StrLoglevel, 7) + Chr(9) + Str(Info\wYear) + "-" + RSet(Str(Info\wMonth), 2, "0") + "-" + RSet(Str(Info\wDay), 2, "0") + " " + 
+          LeadIn = StrLoglevel + Chr(9) + Str(Info\wYear) + "-" + RSet(Str(Info\wMonth), 2, "0") + "-" + RSet(Str(Info\wDay), 2, "0") + " " + 
                    RSet(Str(Info\wHour), 2, "0") + ":" + RSet(Str(Info\wMinute), 2, "0") + ":" + RSet(Str(Info\wSecond), 2, "0") + "," +
                    RSet(Str(Info\wMilliseconds), 3, "0") + Chr(9)
         CompilerElse
-          LeadIn = LSet(StrLoglevel, 7) + "chr(9)+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss, Date()) + Chr(9)
+          LeadIn = StrLoglevel + Chr(9) + FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss", Date()) + Chr(9)
         CompilerEndIf
       EndIf
       ; normalise line endings for splitting
@@ -259,6 +259,7 @@ Module HF_Logging
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 11
+; CursorPosition = 206
+; FirstLine = 168
 ; Folding = ---
 ; EnableXP
