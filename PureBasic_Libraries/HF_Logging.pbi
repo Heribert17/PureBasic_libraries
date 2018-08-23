@@ -38,10 +38,10 @@
 
 DeclareModule HF_Logging
   
-  Declare   PrintNC(Text.s)
+  ; Declare   PrintNC(Text.s)
   ; Print directly to the console (with newline). Use when you have to pipe the output
   
-  Declare   PrintC(Text.s)
+  ; Declare   PrintC(Text.s)
   ; Print directly to the console (without newline). Use when you have to pipe the output
 
   ; Logging
@@ -96,8 +96,50 @@ Module HF_Logging
   EndEnumeration
   
   Global LoggerFilename.s = "logger.log", LoggerFilehandle.i=0, LoggerToConsole.b = #True, LoggerToMemory.b = #False
-  Global LoggerLogLevel = #INFO, LoggerMaxFilesize.l = 10485760, LoggerMaxFilecount.l = 10, LoggerErrorCount.i=0
+  Global LoggerLogLevel = #INFO, LoggerMaxFilesize.i=10485760, LoggerMaxFilecount.i=10, LoggerErrorCount.i=0
   Global NewList LoggingMessages.s()
+  
+  
+  
+  ;---------- Internal procedures
+  
+  Procedure RenameLoggerfile()
+    Shared LoggerFilename.s, LoggerFilehandle.i, LoggerMaxFilesize.i, LoggerMaxFilecount.i
+    Protected i.i, Length.i, Filename.s, NewFilename.s, ErrorByRename.b=#False
+
+    ; Get filesize of Logfile and switch logfile if neccessary
+    If LoggerFilehandle
+      length = Lof(LoggerFilehandle)
+    Else
+      Length = FileSize(LoggerFilename)
+    EndIf
+    If Length > LoggerMaxFilesize
+      Filename = LoggerFilename + "." + Str(LoggerMaxFilecount)
+      DeleteFile(Filename)
+      For i = LoggerMaxFilecount-1 To 0 Step -1
+        Filename = LoggerFilename + "." + Str(i)
+        If FileSize(Filename) >= 0
+          NewFilename = LoggerFilename + "." + Str(i+1)
+          If RenameFile(Filename, NewFilename) = 0
+            WriteLogger("Fehler beim umbennen von " + Filename + " in " + NewFilename, #ERROR)
+            ErrorByRename = #True
+            Break
+          EndIf
+        EndIf
+      Next
+      If Not ErrorByRename
+        If LoggerFilehandle : CloseFile(LoggerFilehandle) : EndIf
+        If RenameFile(LoggerFilename, LoggerFilename + ".0") <> 0
+          LoggerFilehandle = CreateFile(#PB_Any, LoggerFilename, #PB_File_SharedRead | #PB_File_NoBuffering)
+        Else
+          LoggerFilehandle = OpenFile(#PB_Any, LoggerFilename, #PB_File_Append | #PB_File_SharedRead | #PB_File_NoBuffering)
+        EndIf
+        If Not LoggerFilehandle
+          PrintN("Loggerdatei '" + LoggerFilename + "' konnte nicht geöffnet werden.")
+        EndIf
+      EndIf
+    EndIf
+  EndProcedure
   
   
   ;---------- output functions
@@ -139,7 +181,7 @@ Module HF_Logging
   Procedure OpenLogger(Filename.s, ToConsole.b=#True, ToMemory.b=#False, Loglevel.b=#INFO, MaxFilesize.i=10, MaxFilecount.i=10)
     Shared LoggingMessages.s(), LoggerFilehandle.i
     Shared LoggerFilename.s, LoggerFilehandle.i, LoggerToConsole.b, LoggerToMemory.b
-    Shared LoggerLogLevel.i, LoggerMaxFilesize.l, LoggerMaxFilecount.l, LoggerErrorCount.i
+    Shared LoggerLogLevel.i, LoggerMaxFilesize.i, LoggerMaxFilecount.i, LoggerErrorCount.i
     
     LoggerMaxFilesize = MaxFilesize * 1024 * 1024
     LoggerMaxFilecount = MaxFilecount
@@ -152,16 +194,16 @@ Module HF_Logging
     LoggerErrorCount = 0
     LoggerFilehandle = OpenFile(#PB_Any, LoggerFilename, #PB_File_Append | #PB_File_SharedRead | #PB_File_NoBuffering)
     If Not LoggerFilehandle
-      PrintNC("Logfile '" + LoggerFilename + "' can't be opend.")
+      PrintN("Logfile '" + LoggerFilename + "' can't be opend.")
     EndIf
   EndProcedure
   
   
   Procedure WriteLogger(Text.s, LogLevel.b=#INFO, LineLeadIn.b=#True)
     Shared LoggingMessages.s(), LoggerFilehandle.i
-    Shared LoggerFilename.s, LoggerToConsole.b, LoggerToMemory.b
-    Shared LoggerLogLevel.i, LoggerMaxFilesize.l, LoggerMaxFilecount.l, LoggerErrorCount.i
-    Protected WriteText.b=#False, Filename.s, i.i, OutText.s, StrLoglevel.s = "DEBUG"
+    Shared LoggerToConsole.b, LoggerToMemory.b
+    Shared LoggerLogLevel.i, LoggerErrorCount.i
+    Protected WriteText.b=#False, i.i, OutText.s, StrLoglevel.s = "DEBUG"
     Protected TextLine.s, LeadIn.s
     
     If Loglevel = #Debug And LoggerLogLevel = #DEBUG
@@ -180,20 +222,7 @@ Module HF_Logging
     EndIf
     If WriteText
       ; Get filesize of Logfile and switch logfile if neccessary
-      If Not LoggerFilehandle Or Lof(LoggerFilehandle) > LoggerMaxFilesize
-        If LoggerFilehandle : CloseFile(LoggerFilehandle) : EndIf
-        Filename = LoggerFilename + "." + Str(LoggerMaxFilecount)
-        DeleteFile(Filename)
-        For i = LoggerMaxFilecount-1 To 0 Step -1
-          Filename = LoggerFilename + "." + Str(i)
-          RenameFile(Filename, LoggerFilename + "." + Str(i+1))
-        Next
-        RenameFile(LoggerFilename, LoggerFilename + ".0")
-        LoggerFilehandle = CreateFile(#PB_Any, LoggerFilename, #PB_File_SharedRead | #PB_File_SharedWrite | #PB_File_NoBuffering)
-        If Not LoggerFilehandle
-          PrintNC("Loggerdatei '" + LoggerFilename + "' konnte nicht geöffnet werden.")
-        EndIf
-      EndIf
+      RenameLoggerfile()
       ; Calculate time. On Linux or Mac I don't know how to get the time with milliseconds
       LeadIn = ""
       If LineLeadIn
@@ -204,7 +233,7 @@ Module HF_Logging
                    RSet(Str(Info\wHour), 2, "0") + ":" + RSet(Str(Info\wMinute), 2, "0") + ":" + RSet(Str(Info\wSecond), 2, "0") + "," +
                    RSet(Str(Info\wMilliseconds), 3, "0") + Chr(9)
         CompilerElse
-          LeadIn = StrLoglevel + Chr(9) + FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss", Date()) + Chr(9)
+          LeadIn = LSet(StrLoglevel, 7) + "chr(9)+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss, Date()) + Chr(9)
         CompilerEndIf
       EndIf
       ; normalise line endings for splitting
@@ -213,7 +242,7 @@ Module HF_Logging
         TextLine = StringField(Text, i, Chr(10))
         OutText = LeadIn + TextLine
         If LoggerFilehandle : WriteStringN(LoggerFilehandle, OutText) : EndIf
-        If LoggerToConsole : PrintNC(OutText) : EndIf
+        If LoggerToConsole : PrintN(OutText) : EndIf
         If LoggerToMemory : AddElement(LoggingMessages()) : LoggingMessages() = OutText : EndIf
       Next
     EndIf
@@ -259,7 +288,7 @@ Module HF_Logging
 EndModule
 
 ; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 206
-; FirstLine = 168
+; CursorPosition = 43
+; FirstLine = 33
 ; Folding = ---
 ; EnableXP
