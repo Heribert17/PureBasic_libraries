@@ -3,7 +3,7 @@
 ; Logging Funktionen for PureBasic
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 3.1
+; Version: 3.2
 ; OS:      Windows, Linux, Mac
 ;
 ; Requirements:
@@ -38,12 +38,6 @@
 
 DeclareModule HF_Logging
   
-  ; Declare   PrintNC(Text.s)
-  ; Print directly to the console (with newline). Use when you have to pipe the output
-  
-  ; Declare   PrintC(Text.s)
-  ; Print directly to the console (without newline). Use when you have to pipe the output
-
   ; Logging
   Enumeration
     #DEBUG
@@ -130,9 +124,9 @@ Module HF_Logging
       If Not ErrorByRename
         If LoggerFilehandle : CloseFile(LoggerFilehandle) : EndIf
         If RenameFile(LoggerFilename, LoggerFilename + ".0") <> 0
-          LoggerFilehandle = CreateFile(#PB_Any, LoggerFilename, #PB_File_SharedRead | #PB_File_NoBuffering)
+          LoggerFilehandle = CreateFile(#PB_Any, LoggerFilename, #PB_File_SharedRead | #PB_File_SharedWrite | #PB_File_NoBuffering)
         Else
-          LoggerFilehandle = OpenFile(#PB_Any, LoggerFilename, #PB_File_Append | #PB_File_SharedRead | #PB_File_NoBuffering)
+          LoggerFilehandle = OpenFile(#PB_Any, LoggerFilename, #PB_File_Append | #PB_File_SharedRead | #PB_File_SharedWrite | #PB_File_NoBuffering)
         EndIf
         If Not LoggerFilehandle
           PrintN("Loggerdatei '" + LoggerFilename + "' konnte nicht geöffnet werden.")
@@ -140,38 +134,6 @@ Module HF_Logging
       EndIf
     EndIf
   EndProcedure
-  
-  
-  ;---------- output functions
-  
-  Procedure PrintNC(Text.s)
-    Protected *MemoryID, MemorySize.i
-    
-    CompilerSelect #PB_Compiler_OS
-      CompilerCase #PB_OS_MacOS
-        #NewLine = #CR$
-      CompilerCase #PB_OS_Linux
-        #NewLine = #LF$
-      CompilerDefault
-        #NewLine = #CRLF$
-    CompilerEndSelect
-
-    *MemoryID = AllocateMemory(MemoryStringLength(@Text, #PB_Unicode) + 10)
-    MemorySize = PokeS(*MemoryID, Text + #NewLine, -1, #PB_Ascii)
-    WriteConsoleData(*MemoryID, MemorySize)
-    FreeMemory(*MemoryID)
-  EndProcedure
-    
-  
-  Procedure PrintC(Text.s)
-    Protected *MemoryID, MemorySize.i
-    
-    *MemoryID = AllocateMemory(MemoryStringLength(@Text, #PB_Unicode) + 10)
-    MemorySize = PokeS(*MemoryID, Text, -1, #PB_Ascii)
-    WriteConsoleData(*MemoryID, MemorySize)
-    FreeMemory(*MemoryID)
-  EndProcedure
-  
   
   
   ;---------- Logging functions
@@ -192,7 +154,7 @@ Module HF_Logging
     LoggerToMemory = ToMemory
     ClearList(LoggingMessages())
     LoggerErrorCount = 0
-    LoggerFilehandle = OpenFile(#PB_Any, LoggerFilename, #PB_File_Append | #PB_File_SharedRead | #PB_File_NoBuffering)
+    LoggerFilehandle = OpenFile(#PB_Any, LoggerFilename, #PB_File_Append | #PB_File_SharedRead | #PB_File_SharedWrite | #PB_File_NoBuffering)
     If Not LoggerFilehandle
       PrintN("Logfile '" + LoggerFilename + "' can't be opend.")
     EndIf
@@ -287,8 +249,7 @@ Module HF_Logging
 
 EndModule
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 43
-; FirstLine = 33
-; Folding = ---
+; IDE Options = PureBasic 5.70 LTS beta 1 (Windows - x64)
+; CursorPosition = 5
+; Folding = --
 ; EnableXP
