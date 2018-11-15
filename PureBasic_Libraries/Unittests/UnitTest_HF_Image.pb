@@ -65,38 +65,45 @@ CurDir = GetCurrentDirectory()
 
 
 before()
-Datum = HF_Image::GetJPGEXIFDate(CurDir + "\Test-Pictures\JPG-Olympus Kamera\P6160003.JPG")
+Datum = HF_Image::GetJPGEXIFDate(CurDir + "..\..\..\Testdaten\Handy\IMG_20180819_134132.jpg")
+Assert(FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) = "19.08.2018 13:41:32", "Datum des Fotos stimmt nicht überein. Ist = " + 
+                                                                               FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) + " " +
+                                                                               HF_Image::GetLastImageErrorMessage())
+after()
+
+before()
+Datum = HF_Image::GetJPGEXIFDate(CurDir + "..\..\..\Testdaten\JPG-Olympus Kamera\P6160003.JPG")
 Assert(FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) = "16.06.2018 11:50:46", "Datum des Fotos stimmt nicht überein. Ist = " + 
                                                                                FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) + " " +
                                                                                HF_Image::GetLastImageErrorMessage())
 after()
 
 before()
-Datum = HF_Image::GetJPGEXIFDate(CurDir + "\Test-Pictures\JPG-Olympus Kamera\P6160006.JPG")
+Datum = HF_Image::GetJPGEXIFDate(CurDir + "..\..\..\Testdaten\JPG-Olympus Kamera\P6160006.JPG")
 Assert(FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) = "16.06.2018 11:54:20", "Datum des Fotos stimmt nicht überein. Ist = " + 
                                                                                FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) + " " +
                                                                                HF_Image::GetLastImageErrorMessage())
 after()
 
 before()
-Datum = HF_Image::GetJPGEXIFDate(CurDir + "\Test-Pictures\JPG-Smartphone\20180523_160544.jpg")
+Datum = HF_Image::GetJPGEXIFDate(CurDir + "..\..\..\Testdaten\JPG-Smartphone\20180523_160544.jpg")
 Assert(FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) = "23.05.2018 16:05:44", "Datum des Fotos stimmt nicht überein. Ist = " + 
                                                                                FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) + " " +
                                                                                HF_Image::GetLastImageErrorMessage())
 after()
 
-; PrintN("Start Tests Nikon")
-; 
-; before()
-; Datum = HF_Image::GetRAWEXIFDate(CurDir + "\Test-Pictures\RAW-Nikon-F8000\DSCN0782.NRW", "Nikon")
-; Assert(FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) = "11.06.2018 18:21:48", "Datum des Fotos stimmt nicht überein. Ist = " + 
-;                                                                                FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) + " " +
-;                                                                                HF_Image::GetLastImageErrorMessage())
+PrintN("Start Tests Nikon")
+
+before()
+Datum = HF_Image::GetRAWEXIFDate(CurDir + "..\..\..\Testdaten\RAW-Nikon-F8000\2018-06-02 09.Rosendal 129.NRW", "Nikon")
+Assert(FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) = "02.06.2018 22:26:25", "Datum des Fotos stimmt nicht überein. Ist = " + 
+                                                                               FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) + " " +
+                                                                               HF_Image::GetLastImageErrorMessage())
 after()
 PrintN("Starte Test Olympus")
 
 before()
-Datum = HF_Image::GetRAWEXIFDate(CurDir + "\Test-Pictures\RAW-Olympus\P5260001.ORF", "Olympus")
+Datum = HF_Image::GetRAWEXIFDate(CurDir + "..\..\..\Testdaten\RAW-Olympus\P5260001.ORF", "Olympus")
 Assert(FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) = "26.05.2018 08:28:19", "Datum des Fotos stimmt nicht überein. Ist = " + 
                                                                                FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Datum) + " " +
                                                                                HF_Image::GetLastImageErrorMessage())
@@ -106,7 +113,8 @@ PrintN("End " + Str(Count) + " tests, continue with return ...")
 Input()
 CloseConsole()
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 10
+; IDE Options = PureBasic 5.70 LTS beta 1 (Windows - x64)
+; CursorPosition = 98
+; FirstLine = 72
 ; Folding = -
 ; EnableXP

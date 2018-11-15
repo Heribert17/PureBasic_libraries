@@ -3,13 +3,16 @@
 ; Logging Funktionen for PureBasic
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 3.2
+; Version: 3.3
 ; OS:      Windows, Linux, Mac
 ;
 ; Requirements:
 ; Changes:
 ;   Field separator changed from " | " to chr(9) [Tab]. This makes it easier to import
 ;   Log file into Excel.
+;   Version 3.3
+;     ClearSavedLogger implemented
+;
 ; ---------------------------------------------------------------------------------------
 ;
 ; MIT License
@@ -67,6 +70,9 @@ DeclareModule HF_Logging
   
   Declare   GetSavedLogger(List Textlines.s())
   ; Stores in Textlines() all catched log entries or an empty list if ToMemory wasn't set in OpenLogger
+  
+  Declare   ClearSavedLogger()
+  ; Clears all saved Logging entries
   
   Declare.i GetLoggerErrorCount()
   ; return the amount of Errormessages written with LogLevel #ERROR
@@ -233,6 +239,13 @@ Module HF_Logging
   EndProcedure
   
   
+  Procedure ClearSavedLogger()
+    Shared LoggingMessages.s()
+    
+    ClearList(LoggingMessages())
+  EndProcedure
+  
+  
   Procedure.i GetLoggerErrorCount()
     Shared LoggerErrorCount.i  
     
@@ -249,7 +262,7 @@ Module HF_Logging
 
 EndModule
 
-; IDE Options = PureBasic 5.70 LTS beta 1 (Windows - x64)
-; CursorPosition = 5
-; Folding = --
+; IDE Options = PureBasic 5.70 LTS beta 2 (Windows - x64)
+; CursorPosition = 14
+; Folding = ---
 ; EnableXP

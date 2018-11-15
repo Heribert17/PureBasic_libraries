@@ -60,14 +60,14 @@ Module HF_Image
   ;---------- internal routines
   
   ; Returns Bytes read or Zero
-  Procedure.i Read8192BytesFromFile(Filenamepath.s, *imageAdresse, Offset.i)
+  Procedure.i Read81920BytesFromFile(Filenamepath.s, *imageAdresse, Offset.i)
     Protected FileNo.i, BytesRead.i=0
     
     If Offset >= FileSize(Filenamepath) : ProcedureReturn 0 : EndIf
     FileNo = ReadFile(#PB_Any, Filenamepath)
     If Not FileNo : ProcedureReturn 0 : EndIf
     FileSeek(FileNo, Offset)
-    BytesRead = ReadData(FileNo, *imageAdresse, 8192)
+    BytesRead = ReadData(FileNo, *imageAdresse, 81920)
     CloseFile(FileNo)
     ProcedureReturn BytesRead
   EndProcedure
@@ -102,10 +102,10 @@ Module HF_Image
     LastImageErrorMessage = ""
     ; reserve memory on first usage
     If *imageAdress = #Null
-      *imageAdress = AllocateMemory(8192)
+      *imageAdress = AllocateMemory(81920)
     EndIf                           
     
-    If Read8192BytesFromFile(Filenamepath, *imageAdress, 0) = 0
+    If Read81920BytesFromFile(Filenamepath, *imageAdress, 0) = 0
       LastImageErrorMessage = "Kann Datei nicht öffnen"  ; "Can't open file"
       ProcedureReturn 0
     EndIf
@@ -146,13 +146,13 @@ Module HF_Image
         currentTag = PeekW(OffsetField) & $FFFF : If wordOrder <> $4949 : currentTag = xchEndianW(currentTag) : EndIf
         OffsetField + 2
         Select currentTag 
-          Case $9003  ;  DateTiem tag
+          Case $9003  ;  DateTime tag
             OffsetField + 2 ; Bytes 2-3 for fieldtype. Should alway be ASCII
             OffsetField + 4 ; Bytes 4-7 countain the field length
             ; Bytes 8-11 contain a pointer To ASCII Date/Time 
             fieldValue = PeekL(OffsetField) : If wordOrder <> $4949 : fieldValue = xchEndianL(fieldValue) : EndIf
             OffsetField = *imageAdress + fieldValue + Header  ; calculate Adresse of date Field
-            Datum = ParseDate("%yyyy:%mm:%dd %hh:%ii:%ss", PeekS(OffsetField, 255, #PB_Ascii))
+            Datum = ParseDate("%yyyy:%mm:%dd %hh:%ii:%ss", PeekS(OffsetField, 25, #PB_Ascii))
             ProcedureReturn Datum
           Case $8769
             OffsetField + 2 ; Bytes 2-3 for fieldtype. Should alway be Long ($4)
@@ -183,10 +183,10 @@ Module HF_Image
     LowCameraModel = LCase(CameraModel)
     ; Allocate memory on first usage
     If *imageAdress = #Null
-      *imageAdress = AllocateMemory(8192)
+      *imageAdress = AllocateMemory(81920)
     EndIf                           
     
-    If Read8192BytesFromFile(Filenamepath, *imageAdress, 0) = 0 : ProcedureReturn 0 : EndIf
+    If Read81920BytesFromFile(Filenamepath, *imageAdress, 0) = 0 : ProcedureReturn 0 : EndIf
     
     OffsetField = *imageAdress
     ; get WordOrder, may be II ($4949) or MM ($4D4D)
@@ -211,7 +211,7 @@ Module HF_Image
     ifd1 = PeekL(OffsetField) : If wordOrder <> $4949 : ifd1 = xchEndianL(ifd1) : EndIf
     While ifd1 <> 0
       If ifd1 >= MemorySize(*imageAdress)
-        If Read8192BytesFromFile(Filenamepath, *imageAdress, ifd1) = 0 : ProcedureReturn 0 : EndIf
+        If Read81920BytesFromFile(Filenamepath, *imageAdress, ifd1) = 0 : ProcedureReturn 0 : EndIf
         OffsetField = *imageAdress
       Else
         OffsetField = *imageAdress + ifd1
@@ -254,15 +254,15 @@ Module HF_Image
     
     ; Allocate memory on first usage
     If *imageAdress = #Null
-      *imageAdress = AllocateMemory(8192)
+      *imageAdress = AllocateMemory(81920)
     EndIf                           
 
     DateString = FormatDate("%yyyy:%mm:%dd %hh:%ii:%ss", Datum)
     
-    ; Die ersten 8192 Bytes der Datei einlesen
+    ; Die ersten 81920 Bytes der Datei einlesen
     FileNo = ReadFile(#PB_Any, Filenamepath)
     If Not FileNo : ProcedureReturn 0 : EndIf
-    ReadData(FileNo, *imageAdress, 8192)
+    ReadData(FileNo, *imageAdress, 81920)
     CloseFile(FileNo)
     
     OffsetField.l = *imageAdress +3
@@ -319,8 +319,8 @@ Module HF_Image
 
 EndModule
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 33
-; FirstLine = 24
+; IDE Options = PureBasic 5.70 LTS beta 1 (Windows - x64)
+; CursorPosition = 289
+; FirstLine = 278
 ; Folding = --
 ; EnableXP
