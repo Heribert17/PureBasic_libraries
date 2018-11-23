@@ -12,6 +12,8 @@ HF_Image:      Functions to read Date/Time in JPG and some RAW files and to set
 
 HF_Logging:    A logging system for PureBasic
 
+HF_ODBC:       Create ODBC connections from a program
+
 HF_String:     match pattern with * and ? against strings; Split string into List elements
 
 HF_Windows:    Windows spezific functione, Output and time functions

@@ -215,12 +215,30 @@ NextElement(output())
 Assert(output() = "9", "splitString 9 is wrong")
 after()
 
+
+before()
+Assert(HF_String::StartsWith("Heribert 123", "Herib") = #True, "StartsWith Herib passt nicht")
+after()
+
+before()
+Assert(HF_String::StartsWith("Heribert 123", "Heric")= #False, "StartsWith Heric passt nicht")
+after()
+
+
+before()
+Assert(HF_String::EndsWith("Heribert 123", " 123") = #True, "EndsWith 123 passt nicht")
+after()
+
+before()
+Assert(HF_String::EndsWith("Heribert 123", "24") = #False, "EndsWith 24 passt nicht")
+after()
+
 PrintN("Ended with " + Str(Count) + " Tests, continue with Return ...")
 Input()
 CloseConsole()
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 33
-; FirstLine = 25
+; IDE Options = PureBasic 5.70 LTS beta 2 (Windows - x64)
+; CursorPosition = 232
+; FirstLine = 196
 ; Folding = -
 ; EnableXP

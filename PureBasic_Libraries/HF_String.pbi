@@ -3,7 +3,7 @@
 ; Some String Functions
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 3.0
+; Version: 3.1
 ; OS:      Windows, Linux, Mac
 ;
 ; Requirements:
@@ -41,6 +41,12 @@ DeclareModule HF_String
   
   Declare   splitString(List StringParts.s(), ToSplit.s, Delimiter.s, MaxSplits.i=-1, WithSpaceTrim.b=#True)
   ; Splits a string using Delimter into parts an stores them in StringParts()
+  
+  Declare.b StartsWith(String.s, StringToTest.s, IgnoreCase.b=#False)
+  ; Test if first part of String is identical to StringToTest
+  
+  Declare.b EndsWith(String.s, StringToTest.s, IgnoreCase.b=#False)
+  ; Test if the end part of String is identical to StringToTest
   
   Declare.s getMitLicenseText(Year.s, CopyrightHolder.s)
   ; return the MIT Lizenze text
@@ -125,6 +131,34 @@ Module HF_String
   EndProcedure
   
   
+  Procedure.b StartsWith(String.s, StringToTest.s, IgnoreCase.b=#False)
+    If IgnoreCase
+      If UCase(Left(String, Len(StringToTest))) = UCase(StringToTest)
+        ProcedureReturn #True
+      EndIf
+    Else
+      If Left(String, Len(StringToTest)) = StringToTest
+        ProcedureReturn #True
+      EndIf
+    EndIf
+    ProcedureReturn #False
+  EndProcedure
+  
+  
+  Procedure.b EndsWith(String.s, StringToTest.s, IgnoreCase.b=#False)
+    If IgnoreCase
+      If UCase(Right(String, Len(StringToTest))) = UCase(StringToTest)
+        ProcedureReturn #True
+      EndIf
+    Else
+      If Right(String, Len(StringToTest)) = StringToTest
+        ProcedureReturn #True
+      EndIf
+    EndIf
+    ProcedureReturn #False
+  EndProcedure
+  
+    
   Procedure.s getMitLicenseText(Year.s, CopyrightOwner.s)
     Protected NewLine.s = #CRLF$
     
@@ -153,8 +187,7 @@ Module HF_String
   
 EndModule
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 145
-; FirstLine = 112
-; Folding = -
+; IDE Options = PureBasic 5.70 LTS beta 2 (Windows - x64)
+; CursorPosition = 5
+; Folding = --
 ; EnableXP
