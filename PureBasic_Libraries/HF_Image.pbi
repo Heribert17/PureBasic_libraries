@@ -84,7 +84,7 @@ Module HF_Image
     ; Start exiftools when found
     If ExifToolsPrg <> ""
       If Right(Filename, 1) = "\" Or Right(Filename, 1) = "/" : Filename = Mid(Filename, 1, Len(Filename)-1) : EndIf
-      result = RunProgram(~"\"" + ExifToolsPrg  + ~"\"", ~"\"" + Filename + ~"\" -fast " + Option, "", #PB_Program_Open | #PB_Program_Read | #PB_Program_Error | #PB_Program_Hide)
+      result = RunProgram(~"\"" + ExifToolsPrg  + ~"\"", ~"\"" + Filename + ~"\" -fast -charset FileName=Latin " + Option, "", #PB_Program_Open | #PB_Program_Read | #PB_Program_Error | #PB_Program_Hide)
       If result
         While ProgramRunning(result)
           If AvailableProgramOutput(result)
@@ -93,6 +93,10 @@ Module HF_Image
             Delay(50)
           EndIf
           Error + ReadProgramError(result)
+          If Error <> ""
+            LastImageErrorMessage = Error
+            ProcedureReturn #False
+          EndIf
         Wend 
         CloseProgram(result) ; Close the connection to the program
       Else
@@ -182,9 +186,9 @@ Module HF_Image
 
 EndModule
 
-; IDE Options = PureBasic 5.70 LTS beta 4 (Windows - x64)
-; CursorPosition = 85
-; FirstLine = 81
+; IDE Options = PureBasic 5.70 LTS (Windows - x64)
+; CursorPosition = 86
+; FirstLine = 66
 ; Folding = --
 ; EnableXP
 ; CompileSourceDirectory
