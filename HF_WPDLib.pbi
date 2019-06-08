@@ -4,7 +4,7 @@
 ; Implements access to the Windows WPD API
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 1.0
+; Version: 2019.05.31
 ; OS:      Windows
 ;
 ; Requirements: Windows 10
@@ -1338,7 +1338,7 @@ Module HF_WPDLib
   Procedure.i CopyFileToDevice(SourceFilename.s, DestinationFilename.s)
     Shared Devices.sDeviceInformation(), LastErrorMessage.s
     Protected DeviceID.s, VerzeichnisID.s="", DestinationDirectory.s, Verzeichnisname.s, FieldIndex.i=3, SoureFile.i
-    Protected *ContentType, *Buffer, DestinationOnlyFilename.s, DestinationOnlyFilenameWithoutExtension.s, tempStream.IStream
+    Protected *Buffer, DestinationOnlyFilename.s, DestinationOnlyFilenameWithoutExtension.s, tempStream.IStream
     Protected optimalTransferSizeBytes.l, AnzahlGelesen.l, IstreamRwert.i, bytesWritten.l, ContentType.i, hr.i
     Protected pv.PROPVARIANT, deviceValues.IPortableDeviceValues
     Protected ListeVerzeichnisIDs.IPortableDevicePropVariantCollection
@@ -1405,7 +1405,7 @@ Module HF_WPDLib
         hr = deviceValues\SetUnsignedLargeIntegerValue(?WPD_OBJECT_SIZE, FileSize(SourceFilename))
         hr = deviceValues\SetStringValue(?WPD_OBJECT_ORIGINAL_FILE_NAME, @DestinationOnlyFilename)
         hr = deviceValues\SetStringValue(?WPD_OBJECT_NAME, @DestinationOnlyFilenameWithoutExtension)
-        hr = deviceValues\SetGuidValue(?WPD_OBJECT_CONTENT_TYPE, ?WPD_CONTENT_TYPE_GENERIC_FILE) ; *ContentType)
+        hr = deviceValues\SetGuidValue(?WPD_OBJECT_CONTENT_TYPE, ?WPD_CONTENT_TYPE_GENERIC_FILE)
         hr = deviceValues\SetBoolValue(?WPD_OBJECT_CAN_DELETE, #True)
         hr = Devices(DeviceID)\content\CreateObjectWithPropertiesAndData(deviceValues, @tempStream, @optimalTransferSizeBytes, 0)
         If FAILED(hr)
@@ -1428,6 +1428,7 @@ Module HF_WPDLib
             LastErrorMessage = "Error while writing: " + DestinationFilename + " errorcode: 0x" + Hex(IstreamRwert)
             deviceValues\Release()
             CloseFile(SoureFile)
+            FreeMemory(*Buffer)
             ProcedureReturn #False
           EndIf
         Wend
@@ -1437,11 +1438,13 @@ Module HF_WPDLib
           tempStream\Release()
           deviceValues\Release()
           CloseFile(SoureFile)
+          FreeMemory(*Buffer)
           ProcedureReturn #False
         EndIf
         tempStream\Release()
         deviceValues\Release()
         CloseFile(SoureFile)
+        FreeMemory(*Buffer)
         ProcedureReturn #True
       EndIf
     Wend
@@ -1509,6 +1512,7 @@ Module HF_WPDLib
             LastErrorMessage = "Error while reading: " + SourceFilename + " errorcode: 0x" + Hex(IstreamRwert)
             objectDataStream\Release()
             CloseFile(DestFile)
+            FreeMemory(*Buffer)
             ProcedureReturn #False
           EndIf
           If AnzahlGelesen = 0 : Break : EndIf
@@ -1516,6 +1520,7 @@ Module HF_WPDLib
         Wend
         objectDataStream\Release()
         CloseFile(DestFile)
+        FreeMemory(*Buffer)
         ProcedureReturn #True
       EndIf
     Wend
@@ -1665,7 +1670,8 @@ Module HF_WPDLib
   
 EndModule
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 10
+; IDE Options = PureBasic 5.70 LTS (Windows - x64)
+; CursorPosition = 6
 ; Folding = ------
 ; EnableXP
+; CompileSourceDirectory

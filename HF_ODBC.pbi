@@ -44,9 +44,12 @@
 DeclareModule HF_ODBC
   Declare.b CreateConnection(Driver.s, strAttributes.s)
   ; Create an ODBC Connection, return #False on error
+  ; For example:
+  ; HF_ODBC::CreateConnection("SQL Server", "DSN=Personnel Data") ;Server=DB-OEDIV-4B;Database=EASY;Uid=Test;Pwd=OEDIV###;")
   
   Declare.b DeleteConnection(Driver.s, DSN.s) 
   ; Deletes a connection, return #False on error
+  ; HF_ODBC::DeleteConnection("SQL Server", "Personnel Data")
   
   Declare.s GetLastErrormessage()
   ; return the last ODBC errormessage when ohen of the function abvoe return #False
@@ -157,9 +160,11 @@ Module HF_ODBC
   
 EndModule
 
-; IDE Options = PureBasic 5.70 LTS beta 3 (Windows - x64)
+; IDE Options = PureBasic 5.70 LTS (Windows - x64)
 ; ExecutableFormat = Console
-; CursorPosition = 5
+; CursorPosition = 48
+; FirstLine = 37
 ; Folding = --
 ; EnableXP
+; CompileSourceDirectory
 ; Compiler = PureBasic 5.70 LTS beta 3 (Windows - x64)

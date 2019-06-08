@@ -3,7 +3,7 @@
 ; Logging Funktionen for PureBasic
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 3.3
+; Version: 3.4
 ; OS:      Windows, Linux, Mac
 ;
 ; Requirements:
@@ -48,6 +48,7 @@ DeclareModule HF_Logging
     #WARNING
     #ERROR
   EndEnumeration
+  
   Declare   OpenLogger(Filename.s, ToConsole.b=#True, ToMemory.b=#False, Loglevel.b=#INFO, MaxFilesize.i=10, MaxFilecount.i=10)
   ; Initialise the logger
   ; ToConsole: if #True output is sent to file and to console
@@ -191,18 +192,9 @@ Module HF_Logging
     If WriteText
       ; Get filesize of Logfile and switch logfile if neccessary
       RenameLoggerfile()
-      ; Calculate time. On Linux or Mac I don't know how to get the time with milliseconds
       LeadIn = ""
       If LineLeadIn
-        CompilerIf #PB_Compiler_OS = #PB_OS_Windows
-          Protected Info.SYSTEMTIME
-          GetLocalTime_(Info)
-          LeadIn = StrLoglevel + Chr(9) + Str(Info\wYear) + "-" + RSet(Str(Info\wMonth), 2, "0") + "-" + RSet(Str(Info\wDay), 2, "0") + " " + 
-                   RSet(Str(Info\wHour), 2, "0") + ":" + RSet(Str(Info\wMinute), 2, "0") + ":" + RSet(Str(Info\wSecond), 2, "0") + "," +
-                   RSet(Str(Info\wMilliseconds), 3, "0") + Chr(9)
-        CompilerElse
-          LeadIn = LSet(StrLoglevel, 7) + "chr(9)+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss, Date()) + Chr(9)
-        CompilerEndIf
+        LeadIn = LSet(StrLoglevel, 7) + Chr(9)+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss", Date()) + Chr(9)
       EndIf
       ; normalise line endings for splitting
       Text = ReplaceString(Text, Chr(13), "")
@@ -262,7 +254,9 @@ Module HF_Logging
 
 EndModule
 
-; IDE Options = PureBasic 5.70 LTS beta 2 (Windows - x64)
-; CursorPosition = 14
-; Folding = ---
+; IDE Options = PureBasic 5.70 LTS (Windows - x64)
+; CursorPosition = 5
+; FirstLine = 213
+; Folding = --
 ; EnableXP
+; CompileSourceDirectory
