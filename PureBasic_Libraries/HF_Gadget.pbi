@@ -114,17 +114,18 @@ CompilerIf #PB_Compiler_OS = #PB_OS_Windows
     
     
     Procedure Editor_Select(Gadget, LineStart.l, CharStart.l, LineEnd.l, CharEnd.l)
-      Protected sel.CHARRANGE
+      Protected sel.CHARRANGE, Gadgeti.i
       
-      sel\cpMin = SendMessage_(GadgetID(Gadget), #EM_LINEINDEX, LineStart, 0) + CharStart - 1 
+      Gadgeti = GadgetID(Gadget)
+      sel\cpMin = SendMessage_(Gadgeti, #EM_LINEINDEX, LineStart, 0) + CharStart - 1 
       If LineEnd = -1 
-        LineEnd = SendMessage_(GadgetID(Gadget), #EM_GETLINECOUNT, 0, 0)-1 
+        LineEnd = SendMessage_(Gadgeti, #EM_GETLINECOUNT, 0, 0)-1 
       EndIf 
-      sel\cpMax = SendMessage_(GadgetID(Gadget), #EM_LINEINDEX, LineEnd, 0) 
+      sel\cpMax = SendMessage_(Gadgeti, #EM_LINEINDEX, LineEnd, 0) 
       If CharEnd = -1 
-        sel\cpMax + SendMessage_(GadgetID(Gadget), #EM_LINELENGTH, sel\cpMax, 0) 
+        sel\cpMax + SendMessage_(Gadgeti, #EM_LINELENGTH, sel\cpMax, 0) 
       Else 
-        sel\cpMax + CharEnd - 1 
+        sel\cpMax + CharEnd - 1
       EndIf 
       SendMessage_(GadgetID(Gadget), #EM_EXSETSEL, 0, @sel) 
     EndProcedure 
@@ -182,7 +183,8 @@ CompilerIf #PB_Compiler_OS = #PB_OS_Windows
 CompilerEndIf
 
 ; IDE Options = PureBasic 5.70 LTS (Windows - x64)
-; CursorPosition = 5
+; CursorPosition = 127
+; FirstLine = 97
 ; Folding = --
 ; EnableXP
 ; CompileSourceDirectory

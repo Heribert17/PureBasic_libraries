@@ -116,12 +116,28 @@ ForEach Logeintraege()
 Next
 after()
 
+
+before()
+Assert(HF_Logging::WriteWindowsEventlog("Unittest_HF_Logging", ~"Fehlermeldung\n2. Zeile\n3. Zeile", 23456, HF_Logging::#EVENTLOG_ERROR_TYPE), "Error storing windows eventlog message")
+after()
+
+
+before()
+Line = ""
+For i = 1 To 304
+  Line + Str(i) + ~" 1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\r\n"
+Next i
+PrintN(Str(Len(line)))
+Assert(HF_Logging::WriteWindowsEventlog("Unittest_HF_Logging", Line, 23456, HF_Logging::#EVENTLOG_ERROR_TYPE, #True), "Error storing windows eventlog message")
+after()
+
 PrintN("End " + Str(Count) + " tests, continue with return ...")
 Input()
 CloseConsole()
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 112
-; FirstLine = 79
+; IDE Options = PureBasic 5.71 LTS (Windows - x64)
+; CursorPosition = 126
+; FirstLine = 90
 ; Folding = -
 ; EnableXP
+; CompileSourceDirectory

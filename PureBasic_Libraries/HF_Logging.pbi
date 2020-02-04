@@ -3,7 +3,7 @@
 ; Logging Funktionen for PureBasic
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 3.4
+; Version: 2020.02.04
 ; OS:      Windows, Linux, Mac
 ;
 ; Requirements:
@@ -12,6 +12,8 @@
 ;   Log file into Excel.
 ;   Version 3.3
 ;     ClearSavedLogger implemented
+;   Version 2020.02.04
+;     Also delete files wenn max logging files is reduced
 ;
 ; ---------------------------------------------------------------------------------------
 ;
@@ -49,6 +51,19 @@ DeclareModule HF_Logging
     #ERROR
   EndEnumeration
   
+  ; Windows Eventlog
+;   Enumeration
+;     #EVENTLOG_SUCCESS = 0
+;     #EVENTLOG_ERROR_TYPE = 1
+;     #EVENTLOG_INFORMATION_TYPE = 4
+;     #EVENTLOG_WARNING_TYPE = 2
+;   EndEnumeration
+    #EVENTLOG_SUCCESS = "SUCCESS"
+    #EVENTLOG_ERROR_TYPE = "ERROR"
+    #EVENTLOG_INFORMATION_TYPE = "INFORMATION"
+    #EVENTLOG_WARNING_TYPE = "WARNING"
+    
+
   Declare   OpenLogger(Filename.s, ToConsole.b=#True, ToMemory.b=#False, Loglevel.b=#INFO, MaxFilesize.i=10, MaxFilecount.i=10)
   ; Initialise the logger
   ; ToConsole: if #True output is sent to file and to console
@@ -81,6 +96,8 @@ DeclareModule HF_Logging
   Declare   ResetLoggerErrorCount()
   ; Resets the LoggererrorCount and clears all cached log entries 
   
+  Declare.b WriteWindowsEventlog(Event_App.s, EventMessage.s, EventId.i, EventTyp.s, Verbose.b=#False)
+    
 EndDeclareModule
 
 
@@ -95,6 +112,7 @@ Module HF_Logging
     #WARNING
     #ERROR
   EndEnumeration
+  
   
   Global LoggerFilename.s = "logger.log", LoggerFilehandle.i=0, LoggerToConsole.b = #True, LoggerToMemory.b = #False
   Global LoggerLogLevel = #INFO, LoggerMaxFilesize.i=10485760, LoggerMaxFilecount.i=10, LoggerErrorCount.i=0
@@ -115,8 +133,19 @@ Module HF_Logging
       Length = FileSize(LoggerFilename)
     EndIf
     If Length > LoggerMaxFilesize
-      Filename = LoggerFilename + "." + Str(LoggerMaxFilecount)
-      DeleteFile(Filename)
+      ; Delete all files with numbers greater then LoggerMaxFilecount. If LoggerMaxFileCount had been
+      ; reduced, we have to delete more then only the last file. So we stop deleting on the first file
+      ; not found
+      i = LoggerMaxFilecount
+      While #True
+        Filename = LoggerFilename + "." + Str(i)
+        If FileSize(Filename) < 0
+          Break
+        EndIf
+        DeleteFile(Filename)
+        i + 1
+      Wend
+      ; Rename all remaining files
       For i = LoggerMaxFilecount-1 To 0 Step -1
         Filename = LoggerFilename + "." + Str(i)
         If FileSize(Filename) >= 0
@@ -183,7 +212,7 @@ Module HF_Logging
       StrLoglevel = "INFO"
     ElseIf LogLevel = #WARNING And LoggerLogLevel <> #ERROR
       WriteText = #True
-      StrLoglevel = "WARNING"
+      StrLoglevel = "WARN"
     ElseIf LogLevel = #Error
       WriteText = #True
       StrLoglevel = "ERROR"
@@ -194,7 +223,7 @@ Module HF_Logging
       RenameLoggerfile()
       LeadIn = ""
       If LineLeadIn
-        LeadIn = LSet(StrLoglevel, 7) + Chr(9)+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss", Date()) + Chr(9)
+        LeadIn = StrLoglevel + Chr(9)+ FormatDate("%yyyy-%mm-%dd %hh:%ii:%ss", Date()) + Chr(9)
       EndIf
       ; normalise line endings for splitting
       Text = ReplaceString(Text, Chr(13), "")
@@ -251,12 +280,39 @@ Module HF_Logging
     LoggerErrorCount = 0
     ClearList(LoggingMessages())
   EndProcedure
-
+  
+  
+  Procedure.b WriteWindowsEventlog(Event_App.s, EventMessage.s, EventId.i, EventTyp.s, Verbose.b=#False)
+    ; Write EventMessage with EventType and EventID to Windows Eventldog
+    ; The EventId must be in the range 1 to 999
+    Protected command.s, prgid.i, Result.i=#False, Options.i
+    
+    ; prevent EventId from beeing greater as 999 and EventMessage from beeing greater then 32.000 chars
+    EventId = EventId % 1000
+    EventMessage = Left(EventMessage, 32000)
+    command = "/t " + EventTyp + " /id " + Str(EventId) + ~" /l APPLICATION /so \"" + Event_App + ~"\" /d \"" + EventMessage + ~"\""
+    ; if Verbose=#False hide programm output
+    Options = #PB_Program_Open | #PB_Program_Wait
+    If Not Verbose
+      Options = Options | #PB_Program_Hide
+    Else
+      PrintN("")
+      PrintN("EventCreate Parameter: " + command)
+    EndIf
+    prgid = RunProgram("eventcreate.exe", command, ".", Options)
+    If prgid
+      If ProgramExitCode(prgid) = 0
+        result = #True
+      EndIf
+    CloseProgram(prgid) ; Close the connection to the program
+    EndIf
+    ProcedureReturn Result
+  EndProcedure
+    
 EndModule
 
-; IDE Options = PureBasic 5.70 LTS (Windows - x64)
-; CursorPosition = 5
-; FirstLine = 213
-; Folding = --
+; IDE Options = PureBasic 5.71 LTS (Windows - x64)
+; CursorPosition = 15
+; Folding = ---
 ; EnableXP
 ; CompileSourceDirectory

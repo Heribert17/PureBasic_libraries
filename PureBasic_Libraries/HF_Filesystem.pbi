@@ -37,21 +37,35 @@ DeclareModule HF_Filesystem
   Declare.b CreateDirectories(Dir.s)
   ; Create directory including none existing subdirectories
   
-  CompilerIf #PB_Compiler_OS = #PB_OS_Windows
-    Declare.i SetFolderCreationDate(folder.s, date.l) 
-    ; Windows only; Sets the creation time of a folder to date
-    
-    Declare.i SetFolderLastWriteDate(folder.s, date.l)
-    ; Windows only; Sets the last write time to date
+  Declare.i SetFolderCreationDate(folder.s, date.l) 
+  ; Windows only; Sets the creation time of a folder to date
   
-    Declare.s GetFullFilename(Filename.s)
-    ; Windows only; returns the full qualified name of Filename
-  CompilerEndIf
+  Declare.i SetFolderLastWriteDate(folder.s, date.l)
+  ; Windows only; Sets the last write time to date
   
-  
-  Declare   GetDirectoryFilenamesRecursiv(List Filenames.s(), Directory.s, Pattern.s)
-  ; Creates in Filenames a list containing all files Directory an all subdirectores that match Pattern
+  Declare   GetDirectoryFilenamesRecursiv(Directory.s, Pattern.s, List Filenames.s(), ListSemaphore.i=#Null, ListMutex.i=#Null, ListMaxEntries.i=1000, ThreadCount.i=1)
+  ; Creates in Filenames a list containing all files Directory in all subdirectores that match Pattern
   ; The entries in Filenames include the directory names.
+  ; If ListSemaphore and ListMute are not #Null the function works in multithreaded mode. In this mode each adding to Filenames is secured through
+  ;    Lock and Unlock of the ListMutex. After adding a filename the a SignalSemaphore is called to signal the adding. Additionally if there are actually
+  ;    more then ListMaxEntries entries in the queue, the adding is delayed until the listlength is below ListMaxEntries.
+  ;    After all directories are scanned, the procedure adds ThreadCount empty ("") entries into the Filenames list to signal the threads that there are no
+  ;    more directory entries and that they may exit.
+  ;
+  ; Example:
+  ;     ListSemaphore = CreateSemaphore()
+  ;     ListMutex = CreateMutex()
+  ;     ; Create threads
+  ;     For i=0 To #MAXTHREADS
+  ;       AddElement(ThreadList()) : ThreadList() = CreateThread(@getData(), i+1)
+  ;     Next i
+  ;     ; walk through the directory tree
+  ;     HF_Filesystem::GetDirectoryFilenamesRecursiv(#FilePath, "*.xml", XMLFiles(), ListSemaphore, ListMutex, 10000, #MaxThreads)
+  ;     ; wait until all threads ended
+  ;     PrintN("Wait for alle threads to end.")
+  ;     ForEach ThreadList()
+  ;       WaitThread(ThreadList())
+  ;     Next
   
   Declare.s GetNewestFilename(Searchpattern.s)
   ; returns the newest filename of all files that match Searchpattern (with * and/or ?) in a directory.
@@ -62,6 +76,9 @@ DeclareModule HF_Filesystem
   Declare.s JoinPath(Path.s, Entry.s)
   ; Joins path and Entry to build a valid file- ord directory name
   
+  Declare.s GetFullFilename(Filename.s)
+  ; Windows only; returns the full qualified name of Filename
+  
   Declare.s GetFilenameWithoutDrive(Filename.s)
   ; retunrns the filename without the drive or UNC part
   
@@ -71,27 +88,22 @@ DeclareModule HF_Filesystem
   Declare.b CompressDirectoryToZip(DirToCompress.s, ZipFilename.s)
   ; Compresses a whole directory to a zip file
   
-  CompilerIf #PB_Compiler_OS = #PB_OS_Windows_10
+  Declare.s MapDrive(Sharename.s, User.s, Password.s)
+  ; Windows only. Maps a share on another Windows System (or a samba share) using the given Username and Password
+  ; return an errormessage or "" on success
   
-    Declare.s MapDrive(Sharename.s, User.s, Password.s)
-    ; Windows only. Maps a share on another Windows System (or a samba share) using the given Username and Password
-    ; return an errormessage or "" on success
-    
-    Declare   UnmapDrive(Sharename.s)
-    ; Windows only. Unmaps a mapped Share
-    
-    Declare   FileMonitorAddFile(Filename.s, CallbackRoutine)
-    ; Windows only; Tells the windows system to inform me, when a file changes. The CallbackRoutine must match the Prototype below and is
-    ; called asynchronous when Windows detects a change. The callback ist called with on of these actions:
-    ; "ADDED", "MODIFIED", "REMOVED", "RENAMED_NEWNAME", "RENAMED_OLDNAME".
-    ; In the case of MODIFIED and RENAMED_NEWNAME the appended text is returned.
-    ; based on a solution from merendo (https://www.purebasic.fr/english/viewtopic.php?p=378528)
+  Declare   UnmapDrive(Sharename.s)
+  ; Windows only. Unmaps a mapped Share
   
-    Prototype FileMonitorCallBack(Action.s, Filename.s, Text.s)
-    ; Prototype for the CallbackRoutine in FileMonitorAddFile
-    
-  CompilerEndIf
-  
+  Declare   FileMonitorAddFile(Filename.s, CallbackRoutine)
+  ; Windows only; Tells the windows system to inform me, when a file changes. The CallbackRoutine must match the Prototype below and is
+  ; called asynchronous when Windows detects a change. The callback ist called with on of these actions:
+  ; "ADDED", "MODIFIED", "REMOVED", "RENAMED_NEWNAME", "RENAMED_OLDNAME".
+  ; In the case of MODIFIED and RENAMED_NEWNAME the appended text is returned.
+  ; based on a solution from merendo (https://www.purebasic.fr/english/viewtopic.php?p=378528)
+
+  Prototype FileMonitorCallBack(Action.s, Filename.s, Text.s)
+  ; Prototype for the CallbackRoutine in FileMonitorAddFile
   
 EndDeclareModule
 
@@ -103,15 +115,27 @@ Module HF_Filesystem
 
   ;---------- internal procedures
   
-  Procedure getDirEntriesInternal(List Filenames.s(), Directory.s, Pattern.s)
-    Protected Dir.i
+  Procedure getDirEntriesInternal(Directory.s, Pattern.s, List Filenames.s(), ListSemaphore.i, ListMutex.i, ListMaxEntries.i)
+    Protected Dir.i, Filename.s
     
     ; get all directory content
     dir = ExamineDirectory(#PB_Any, Directory, Pattern)
     If dir
       While NextDirectoryEntry(dir)
         If DirectoryEntryType(dir) = #PB_DirectoryEntry_File
-          AddElement(Filenames()) : Filenames() = JoinPath(Directory, DirectoryEntryName(dir))
+          Filename = JoinPath(Directory, DirectoryEntryName(dir))
+          If ListSemaphore And ListMutex
+            While ListSize(Filenames()) >= ListMaxEntries
+              Delay(10)
+            Wend
+            LockMutex(ListMutex)
+            LastElement(Filenames())
+            AddElement(Filenames()) : Filenames() = Filename
+            UnlockMutex(ListMutex)
+            SignalSemaphore(ListSemaphore)
+          Else
+            AddElement(Filenames()) : Filenames() = Filename
+          EndIf
         EndIf
       Wend
       FinishDirectory(dir)
@@ -121,7 +145,7 @@ Module HF_Filesystem
     If dir
       While NextDirectoryEntry(dir)
         If DirectoryEntryType(dir) = #PB_DirectoryEntry_Directory And DirectoryEntryName(dir) <> "." And DirectoryEntryName(dir) <> ".."
-          getDirEntriesInternal(Filenames(), JoinPath(Directory, DirectoryEntryName(dir)), Pattern)
+          getDirEntriesInternal(JoinPath(Directory, DirectoryEntryName(dir)), Pattern, Filenames(), ListSemaphore.i, ListMutex.i, ListMaxEntries.i)
         EndIf
       Wend
       FinishDirectory(dir)
@@ -176,101 +200,100 @@ Module HF_Filesystem
   EndProcedure 
   
   
-  CompilerIf #PB_Compiler_OS = #PB_OS_Windows
-    ; Set creation date/time of a folder
-    ; Return 0 if error
-    Procedure.i SetFolderCreationDate(folder.s, date.l) 
-      #FILE_SHARE_DELETE = 4
-      Protected ft.filetime 
-      Protected st.SYSTEMTIME 
-      Protected tz.TIME_ZONE_INFORMATION 
-      Protected result.l=1
-      Protected DesiredAccess.i, ShareMode.i, Disposition.i, Flags.i, FolderHandle.i
-      
-      GetTimeZoneInformation_(@tz) 
-      date = AddDate(date, #PB_Date_Minute, tz\Bias) 
-      If tz\DaylightDate 
-        date = AddDate(date, #PB_Date_Minute, tz\DaylightBias) 
-      EndIf 
-      With st 
-        \wYear   = Year(date) 
-        \wMonth  = Month(date) 
-        \wDay    = Day(date) 
-        \wHour   = Hour(date) 
-        \wMinute = Minute(date) 
-        \wSecond = Second(date) 
-      EndWith 
-      SystemTimeToFileTime_(@st, @ft) 
-      DesiredAccess = #GENERIC_READ|#GENERIC_WRITE 
-      ShareMode     = #FILE_SHARE_READ|#FILE_SHARE_DELETE 
-      Disposition   = #OPEN_EXISTING 
-      Flags         = #FILE_FLAG_BACKUP_SEMANTICS 
-      FolderHandle  = CreateFile_(folder, DesiredAccess, ShareMode, 0, Disposition, Flags, 0) 
-      If FolderHandle 
-        result = SetFileTime_(FolderHandle, @ft, #Null, #Null) 
-        CloseHandle_(FolderHandle) 
-      Else 
-        result = 0 
-      EndIf 
-      ProcedureReturn result 
-    EndProcedure 
+  ; Set creation date/time of a folder
+  ; Return 0 if error
+  Procedure.i SetFolderCreationDate(folder.s, date.l) 
+    #FILE_SHARE_DELETE = 4
+    Protected ft.filetime 
+    Protected st.SYSTEMTIME 
+    Protected tz.TIME_ZONE_INFORMATION 
+    Protected result.l=1
+    Protected DesiredAccess.i, ShareMode.i, Disposition.i, Flags.i, FolderHandle.i
     
-    
-    ; Set the last write time of a directory
-    ; Return 0 bei einem Fehler
-    Procedure.i SetFolderLastWriteDate(folder.s, date.l) 
-      #FILE_SHARE_DELETE = 4 
-      
-      Protected ft.filetime 
-      Protected st.SYSTEMTIME 
-      Protected tz.TIME_ZONE_INFORMATION 
-      Protected result.l 
-      Protected DesiredAccess.i, ShareMode.i, Disposition.i, Flags.i, FolderHandle.i
-      
-      GetTimeZoneInformation_(@tz) 
-      date = AddDate(date, #PB_Date_Minute, tz\Bias) 
-      If tz\DaylightDate 
-        date = AddDate(date, #PB_Date_Minute, tz\DaylightBias) 
-      EndIf 
-      With st 
-        \wYear   = Year(date) 
-        \wMonth  = Month(date) 
-        \wDay    = Day(date) 
-        \wHour   = Hour(date) 
-        \wMinute = Minute(date) 
-        \wSecond = Second(date) 
-      EndWith 
-      SystemTimeToFileTime_(@st, @ft) 
-      DesiredAccess = #GENERIC_READ|#GENERIC_WRITE 
-      ShareMode     = #FILE_SHARE_READ|#FILE_SHARE_DELETE 
-      Disposition   = #OPEN_EXISTING 
-      Flags         = #FILE_FLAG_BACKUP_SEMANTICS 
-      FolderHandle  = CreateFile_(folder, DesiredAccess, ShareMode, 0, Disposition, Flags, 0) 
-      If FolderHandle 
-        result = SetFileTime_(FolderHandle, #Null, #Null, @ft) 
-        CloseHandle_(FolderHandle) 
-      Else 
-        result = 0 
-      EndIf 
-      ProcedureReturn result 
-    EndProcedure 
-    
-    
-    Procedure.s GetFullFilename(Filename.s)
-      Protected Buffer.s, FilePart.i
-      
-      Buffer = Space(32768)
-      GetFullPathName_(FileName, Len(Buffer), @Buffer, @FilePart) 
-      ProcedureReturn Buffer
-    EndProcedure
-      
-  CompilerEndIf  
+    GetTimeZoneInformation_(@tz) 
+    date = AddDate(date, #PB_Date_Minute, tz\Bias) 
+    If tz\DaylightDate 
+      date = AddDate(date, #PB_Date_Minute, tz\DaylightBias) 
+    EndIf 
+    With st 
+      \wYear   = Year(date) 
+      \wMonth  = Month(date) 
+      \wDay    = Day(date) 
+      \wHour   = Hour(date) 
+      \wMinute = Minute(date) 
+      \wSecond = Second(date) 
+    EndWith 
+    SystemTimeToFileTime_(@st, @ft) 
+    DesiredAccess = #GENERIC_READ|#GENERIC_WRITE 
+    ShareMode     = #FILE_SHARE_READ|#FILE_SHARE_DELETE 
+    Disposition   = #OPEN_EXISTING 
+    Flags         = #FILE_FLAG_BACKUP_SEMANTICS 
+    FolderHandle  = CreateFile_(folder, DesiredAccess, ShareMode, 0, Disposition, Flags, 0) 
+    If FolderHandle 
+      result = SetFileTime_(FolderHandle, @ft, #Null, #Null) 
+      CloseHandle_(FolderHandle) 
+    Else 
+      result = 0 
+    EndIf 
+    ProcedureReturn result 
+  EndProcedure 
   
   
+  ; Set the last write time of a directory
+  ; Return 0 bei einem Fehler
+  Procedure.i SetFolderLastWriteDate(folder.s, date.l) 
+    #FILE_SHARE_DELETE = 4 
+    
+    Protected ft.filetime 
+    Protected st.SYSTEMTIME 
+    Protected tz.TIME_ZONE_INFORMATION 
+    Protected result.l 
+    Protected DesiredAccess.i, ShareMode.i, Disposition.i, Flags.i, FolderHandle.i
+    
+    GetTimeZoneInformation_(@tz) 
+    date = AddDate(date, #PB_Date_Minute, tz\Bias) 
+    If tz\DaylightDate 
+      date = AddDate(date, #PB_Date_Minute, tz\DaylightBias) 
+    EndIf 
+    With st 
+      \wYear   = Year(date) 
+      \wMonth  = Month(date) 
+      \wDay    = Day(date) 
+      \wHour   = Hour(date) 
+      \wMinute = Minute(date) 
+      \wSecond = Second(date) 
+    EndWith 
+    SystemTimeToFileTime_(@st, @ft) 
+    DesiredAccess = #GENERIC_READ|#GENERIC_WRITE 
+    ShareMode     = #FILE_SHARE_READ|#FILE_SHARE_DELETE 
+    Disposition   = #OPEN_EXISTING 
+    Flags         = #FILE_FLAG_BACKUP_SEMANTICS 
+    FolderHandle  = CreateFile_(folder, DesiredAccess, ShareMode, 0, Disposition, Flags, 0) 
+    If FolderHandle 
+      result = SetFileTime_(FolderHandle, #Null, #Null, @ft) 
+      CloseHandle_(FolderHandle) 
+    Else 
+      result = 0 
+    EndIf 
+    ProcedureReturn result 
+  EndProcedure 
   
-  Procedure GetDirectoryFilenamesRecursiv(List Filenames.s(), Directory.s, Pattern.s)
+  
+  Procedure GetDirectoryFilenamesRecursiv(Directory.s, Pattern.s, List Filenames.s(), ListSemaphore.i=#Null, ListMutex.i=#Null, ListMaxEntries.i=1000, ThreadCount.i=1)
+    Protected i.i
+    
     ClearList(Filenames())
-    getDirEntriesInternal(Filenames(), Directory, Pattern)
+    getDirEntriesInternal(Directory, Pattern, Filenames(), ListSemaphore, ListMutex, ListMaxEntries)
+    ; If in thread mode, signal the threads that they may end
+    If ListSemaphore And ListMutex
+      LockMutex(ListMutex)
+      LastElement(Filenames())
+      For i= 0 To ThreadCount
+        AddElement(Filenames()) : Filenames() = ""
+        SignalSemaphore(ListSemaphore)
+      Next i
+      UnlockMutex(ListMutex)
+    EndIf
   EndProcedure
   
 
@@ -313,10 +336,14 @@ Module HF_Filesystem
     ProcedureReturn Path + Entry
   EndProcedure
   
-  CompilerIf #PB_Compiler_OS = #PB_OS_Windows_10
   
+  Procedure.s GetFullFilename(Filename.s)
+    Protected Buffer.s, FilePart.i
     
-  CompilerEndIf
+    Buffer = Space(32768)
+    GetFullPathName_(FileName, Len(Buffer), @Buffer, @FilePart) 
+    ProcedureReturn Buffer
+  EndProcedure
   
   
   Procedure.s GetFilenameWithoutDrive(Filename.s)
@@ -395,293 +422,292 @@ Module HF_Filesystem
   
   
   ;---------- Network sharing
-  CompilerIf #PB_Compiler_OS = #PB_OS_Windows_10
   
-    #NO_ERROR = 0
-    #CONNECT_UPDATE_PROFILE = $1
-    ; The following includes all the constants defined for NETRESOURCE,
-    ; not just the ones used in this example\
-    #RESOURCETYPE_DISK = $1
-    #RESOURCETYPE_PRINT = $2
-    #RESOURCETYPE_ANY = $0
-    #RESOURCE_CONNECTED = $1
-    #RESOURCE_REMBERED = $3
-    #RESOURCE_GLOBALNET = $2
-    #RESOURCEDISPLAYTYPE_DOMAIN = $1
-    #RESOURCEDISPLAYTYPE_GENERIC = $0
-    #RESOURCEDISPLAYTYPE_SERVER = $2
-    #RESOURCEDISPLAYTYPE_SHARE = $3
-    #RESOURCEUSAGE_CONNECTABLE = $1
-    #RESOURCEUSAGE_CONTAINER = $2
-    ; Error Constants:
-    #ERROR_ACCESS_DENIED = 5
-    #ERROR_ALREADY_ASSIGNED = 85
-    #ERROR_BAD_DEV_TYPE = 66
-    #ERROR_BAD_DEVICE = 1200
-    #ERROR_BAD_NET_NAME = 67
-    #ERROR_BAD_PROFILE = 1206
-    #ERROR_BAD_PROVIDER = 1204
-    #ERROR_BUSY = 170
-    #ERROR_CANCELLED = 1223
-    #ERROR_CANNOT_OPEN_PROFILE = 1205
-    #ERROR_DEVICE_ALREADY_REMBERED = 1202
-    #ERROR_EXTENDED_ERROR = 1208
-    #ERROR_INVALID_PASSWORD = 86
-    #ERROR_NO_NET_OR_BAD_PATH = 1203
+  #NO_ERROR = 0
+  #CONNECT_UPDATE_PROFILE = $1
+  ; The following includes all the constants defined for NETRESOURCE,
+  ; not just the ones used in this example\
+  #RESOURCETYPE_DISK = $1
+  #RESOURCETYPE_PRINT = $2
+  #RESOURCETYPE_ANY = $0
+  #RESOURCE_CONNECTED = $1
+  #RESOURCE_REMBERED = $3
+  #RESOURCE_GLOBALNET = $2
+  #RESOURCEDISPLAYTYPE_DOMAIN = $1
+  #RESOURCEDISPLAYTYPE_GENERIC = $0
+  #RESOURCEDISPLAYTYPE_SERVER = $2
+  #RESOURCEDISPLAYTYPE_SHARE = $3
+  #RESOURCEUSAGE_CONNECTABLE = $1
+  #RESOURCEUSAGE_CONTAINER = $2
+  ; Error Constants:
+  #ERROR_ACCESS_DENIED = 5
+  #ERROR_ALREADY_ASSIGNED = 85
+  #ERROR_BAD_DEV_TYPE = 66
+  #ERROR_BAD_DEVICE = 1200
+  #ERROR_BAD_NET_NAME = 67
+  #ERROR_BAD_PROFILE = 1206
+  #ERROR_BAD_PROVIDER = 1204
+  #ERROR_BUSY = 170
+  #ERROR_CANCELLED = 1223
+  #ERROR_CANNOT_OPEN_PROFILE = 1205
+  #ERROR_DEVICE_ALREADY_REMBERED = 1202
+  #ERROR_EXTENDED_ERROR = 1208
+  #ERROR_INVALID_PASSWORD = 86
+  #ERROR_NO_NET_OR_BAD_PATH = 1203
+  
+  Procedure.s MapDrive(Sharename.s, User.s, Password.s)
+    Protected res.NETRESOURCE, result.i, Msg.s
     
-    Procedure.s MapDrive(Sharename.s, User.s, Password.s)
-      Protected res.NETRESOURCE, result.i, Msg.s
-      
-      res\dwType = #RESOURCETYPE_DISK
-      res\lpLocalName = #Null
-      res\lpRemoteName = @Sharename
-      res\lpProvider = #Null
-      ; The following error are ignored by WNetAddConnection2_ 
-      res\dwScope = #RESOURCE_GLOBALNET
-      res\dwDisplayType = #RESOURCEDISPLAYTYPE_GENERIC
-      res\dwUsage = #RESOURCEUSAGE_CONNECTABLE
-      res\lpComment = #Null
-      
-      If WNetAddConnection2_(res, @Password, @User, 4) <> #NO_ERROR ; dwFlag 4 is CONNECT_TEMPORARY
-        result = GetLastError_()
-        Msg = Str(result) + " - "
-        Select result
-          Case #ERROR_ACCESS_DENIED
-            Msg + "Access to the network resource was denied."
-          Case #ERROR_ALREADY_ASSIGNED
-            Msg + "The local device specified by lpLocalName is already connected to a network resource."
-          Case #ERROR_BAD_DEV_TYPE
-            Msg + "The type of local device and the type of network resource do not match."
-          Case #ERROR_BAD_DEVICE
-            Msg + "The value specified by lpLocalName is invalid."
-          Case #ERROR_BAD_NET_NAME
-            Msg + "The value specified by lpRemoteName is not acceptable to any network resource provider. The resource name is invalid, or the named resource cannot be located."
-          Case #ERROR_BAD_PROFILE
-            Msg + "The user profile is in an incorrect format."
-          Case #ERROR_BAD_PROVIDER
-            Msg + "The value specified by lpProvider does not match any provider."
-          Case #ERROR_BUSY
-            Msg + "The router or provider is busy, possibly initializing. The caller should retry."
-            ;Case #ERROR_CANCELLED
-            ;Msg$ + "The attempt To make the connection was cancelled by the user through a dialog box from one of the network resource providers, Or by a called resource."
-          Case #ERROR_CANNOT_OPEN_PROFILE
-            Msg + "The system is unable to open the user profile to process persistent connections."
-          Case #ERROR_DEVICE_ALREADY_REMEMBERED
-            Msg + "An entry for the device specified in lpLocalName is already in the user profile."
-          Case #ERROR_EXTENDED_ERROR
-            Msg + "A network-specific error occured. Call the WNetGetLastError function to get a description of the error."
-          Case #ERROR_INVALID_PASSWORD
-            Msg + "The specified password is invalid."
-          Case #ERROR_NO_NET_OR_BAD_PATH
-            Msg + "A network component has not started, or the specified name could not be handled."
-          Case #ERROR_NO_NETWORK
-            Msg + "There is no network present."
-          Default
-            Msg + "Not known:"
-        EndSelect
-        ProcedureReturn Msg
+    res\dwType = #RESOURCETYPE_DISK
+    res\lpLocalName = #Null
+    res\lpRemoteName = @Sharename
+    res\lpProvider = #Null
+    ; The following error are ignored by WNetAddConnection2_ 
+    res\dwScope = #RESOURCE_GLOBALNET
+    res\dwDisplayType = #RESOURCEDISPLAYTYPE_GENERIC
+    res\dwUsage = #RESOURCEUSAGE_CONNECTABLE
+    res\lpComment = #Null
+    
+    If WNetAddConnection2_(res, @Password, @User, 4) <> #NO_ERROR ; dwFlag 4 is CONNECT_TEMPORARY
+      result = GetLastError_()
+      Msg = Str(result) + " - "
+      Select result
+        Case #ERROR_ACCESS_DENIED
+          Msg + "Access to the network resource was denied."
+        Case #ERROR_ALREADY_ASSIGNED
+          Msg + "The local device specified by lpLocalName is already connected to a network resource."
+        Case #ERROR_BAD_DEV_TYPE
+          Msg + "The type of local device and the type of network resource do not match."
+        Case #ERROR_BAD_DEVICE
+          Msg + "The value specified by lpLocalName is invalid."
+        Case #ERROR_BAD_NET_NAME
+          Msg + "The value specified by lpRemoteName is not acceptable to any network resource provider. The resource name is invalid, or the named resource cannot be located."
+        Case #ERROR_BAD_PROFILE
+          Msg + "The user profile is in an incorrect format."
+        Case #ERROR_BAD_PROVIDER
+          Msg + "The value specified by lpProvider does not match any provider."
+        Case #ERROR_BUSY
+          Msg + "The router or provider is busy, possibly initializing. The caller should retry."
+          ;Case #ERROR_CANCELLED
+          ;Msg$ + "The attempt To make the connection was cancelled by the user through a dialog box from one of the network resource providers, Or by a called resource."
+        Case #ERROR_CANNOT_OPEN_PROFILE
+          Msg + "The system is unable to open the user profile to process persistent connections."
+        Case #ERROR_DEVICE_ALREADY_REMEMBERED
+          Msg + "An entry for the device specified in lpLocalName is already in the user profile."
+        Case #ERROR_EXTENDED_ERROR
+          Msg + "A network-specific error occured. Call the WNetGetLastError function to get a description of the error."
+        Case #ERROR_INVALID_PASSWORD
+          Msg + "The specified password is invalid."
+        Case #ERROR_NO_NET_OR_BAD_PATH
+          Msg + "A network component has not started, or the specified name could not be handled."
+        Case #ERROR_NO_NETWORK
+          Msg + "There is no network present."
+        Default
+          Msg + "Not known:"
+      EndSelect
+      ProcedureReturn Msg
+    EndIf
+  EndProcedure
+  
+  
+  ; Disconnet share
+  Procedure UnmapDrive(Sharename.s)
+    WNetCancelConnection2_ (Sharename, #CONNECT_UPDATE_PROFILE, 0) ; Disconnect the drive
+  EndProcedure
+  
+  
+  
+  ;---------- Filesystem monitoring
+  
+  #FILE_NOTIFY_CHANGE_FILE_NAME = 1 
+  ; Any file name change in the watched directory or subtree causes a change notification wait operation to return. 
+  ; Changes include renaming, creating, or deleting a file name. 
+
+  #FILE_NOTIFY_CHANGE_DIR_NAME = 2 
+  ; Any directory-name change in the watched directory or subtree causes a change notification wait operation to return. 
+  ; Changes include creating or deleting a directory. 
+  
+  #FILE_NOTIFY_CHANGE_ATTRIBUTES = 4 
+  ; Any attribute change in the watched directory or subtree causes a change notification wait operation to return. 
+  
+  #FILE_NOTIFY_CHANGE_SIZE = 8 
+  ; Any file-size change in the watched directory or subtree causes a change notification wait operation to return. The operating 
+  ; system detects a change in file size only when the file is written to the disk. For operating systems that use extensive caching, 
+  ; detection occurs only when the cache is sufficiently flushed. 
+  
+  #FILE_NOTIFY_CHANGE_LAST_WRITE = $10 
+  ; Any change to the last write-time of files in the watched directory or subtree causes a change notification wait operation to return. The 
+  ; operating system detects a change to the last write-time only when the file is written to the disk. For operating systems that use extensive 
+  ; caching, detection occurs only when the cache is sufficiently flushed. 
+  
+  #FILE_NOTIFY_CHANGE_SECURITY = $100 
+  ; Any security-descriptor change in the watched directory or subtree causes a change notification wait operation to return. 
+  
+  #INVALID_HANDLE_VALUE = - 1 
+  #MYINFINITE = $FFFFFFFF 
+  #STATUS_WAIT_0 = 0 
+  #WAIT_OBJECT_0 = #STATUS_WAIT_0 + 0 
+  
+  
+  Structure StruktureFileMonitor
+    PathLower.s
+    FilenameLower.s
+    FilePosition.l
+    FullFilename.s
+    CallbackRoutine.FileMonitorCallBack
+  EndStructure
+  Structure StruktureFileMonitorThreads
+    WatchPathLower.s
+    ThreadNumber.i
+  EndStructure
+  
+  
+  Define NewList FileMonitorData.StruktureFileMonitor()
+  Define NewList FileMonitorThreads.StruktureFileMonitorThreads()
+  Define FileMonitorError.s
+  Define FileMonitorMutex.i = CreateMutex()
+  
+  Import "kernel32.lib"
+    ReadDirectoryChangesW(hDirectory.l, *lpBuffer, nbBufferLen.l, bWatchSubTree.b, dwNotifyFilter.l, *lpBytesReturned, *lpOverlapped.OVERLAPPED, 
+                          lpCompletitionRoutine)
+  EndImport
+  
+  
+  Procedure.s FileMonitorReadFile(*FileMonitorData.StruktureFileMonitor, ChangedFilename.s=#Null$)
+    Protected Filename.s, Filehandle.i, FileContent.s, filelength.i, readlength.i
+    Static *MemoryID = #NUL
+    
+    If *MemoryID = #NUL : *MemoryID = AllocateMemory(2049) : EndIf
+    If Not *MemoryID : ProcedureReturn "" : EndIf
+    FileContent = ""
+    ; Datei öffnen und ab letzter Position bis zum Ende lesen
+    Filename = *FileMonitorData\FullFilename
+    If ChangedFilename <> #Null$ : Filename = ChangedFilename : EndIf
+    Filehandle = ReadFile(#PB_Any, Filename, #PB_File_SharedRead | #PB_File_SharedWrite)
+    If Filehandle
+      filelength = Lof(Filehandle)     ; get the length of opened file
+      readlength = filelength
+      If filelength >= *FileMonitorData\FilePosition
+        FileSeek(Filehandle, *FileMonitorData\FilePosition)
+        readlength = filelength - *FileMonitorData\FilePosition
       EndIf
-    EndProcedure
-    
-    
-    ; Disconnet share
-    Procedure UnmapDrive(Sharename.s)
-      WNetCancelConnection2_ (Sharename, #CONNECT_UPDATE_PROFILE, 0) ; Disconnect the drive
-    EndProcedure
-    
-    
-    
-    ;---------- Filesystem monitoring
-    
-    #FILE_NOTIFY_CHANGE_FILE_NAME = 1 
-    ; Any file name change in the watched directory or subtree causes a change notification wait operation to return. 
-    ; Changes include renaming, creating, or deleting a file name. 
+      If readlength > MemorySize(*MemoryID)
+        FreeMemory(*MemoryID)
+        *MemoryID = AllocateMemory(readlength + 2049)
+      EndIf
+      ReadData(Filehandle, *MemoryID, readlength)
+      CloseFile(Filehandle)
+      FileContent = PeekS(*MemoryID, readlength, #PB_Ascii)
+      *FileMonitorData\FilePosition = filelength
+    EndIf
+    ProcedureReturn FileContent
+  EndProcedure
   
-    #FILE_NOTIFY_CHANGE_DIR_NAME = 2 
-    ; Any directory-name change in the watched directory or subtree causes a change notification wait operation to return. 
-    ; Changes include creating or deleting a directory. 
-    
-    #FILE_NOTIFY_CHANGE_ATTRIBUTES = 4 
-    ; Any attribute change in the watched directory or subtree causes a change notification wait operation to return. 
-    
-    #FILE_NOTIFY_CHANGE_SIZE = 8 
-    ; Any file-size change in the watched directory or subtree causes a change notification wait operation to return. The operating 
-    ; system detects a change in file size only when the file is written to the disk. For operating systems that use extensive caching, 
-    ; detection occurs only when the cache is sufficiently flushed. 
-    
-    #FILE_NOTIFY_CHANGE_LAST_WRITE = $10 
-    ; Any change to the last write-time of files in the watched directory or subtree causes a change notification wait operation to return. The 
-    ; operating system detects a change to the last write-time only when the file is written to the disk. For operating systems that use extensive 
-    ; caching, detection occurs only when the cache is sufficiently flushed. 
-    
-    #FILE_NOTIFY_CHANGE_SECURITY = $100 
-    ; Any security-descriptor change in the watched directory or subtree causes a change notification wait operation to return. 
-    
-    #INVALID_HANDLE_VALUE = - 1 
-    #MYINFINITE = $FFFFFFFF 
-    #STATUS_WAIT_0 = 0 
-    #WAIT_OBJECT_0 = #STATUS_WAIT_0 + 0 
-    
-    
-    Structure StruktureFileMonitor
-      PathLower.s
-      FilenameLower.s
-      FilePosition.l
-      FullFilename.s
-      CallbackRoutine.FileMonitorCallBack
+  
+  Procedure FileMonitorThread(*FileMonitorThread.StruktureFileMonitorThreads)
+    Shared FileMonitorMutex.i, FileMonitorData.StruktureFileMonitor()
+    ; structure for the needed
+    Structure STRUKTURE_FILE_NOTIFY_INFORMATION
+      NextEntryOffset.l
+      Action.l
+      FileNameLength.l
+      Filename.s{512}
     EndStructure
-    Structure StruktureFileMonitorThreads
-      WatchPathLower.s
-      ThreadNumber.i
-    EndStructure
+    Protected *buffer = AllocateMemory(64*SizeOf(STRUKTURE_FILE_NOTIFY_INFORMATION))
+    Protected *ovlp.OVERLAPPED = AllocateMemory(SizeOf(OVERLAPPED))
+    Protected dwOffset.l=0, bytesRead.l, FileContent.s
+    Protected *pInfo.STRUKTURE_FILE_NOTIFY_INFORMATION
+    Protected Filename.s, WatchPath.s, Action.s, hDir.i
+    ; Notify events
+    Enumeration
+      #FILE_ACTION_ADDED = 1
+      #FILE_ACTION_REMOVED
+      #FILE_ACTION_MODIFIED
+      #FILE_ACTION_RENAMED_OLD_NAME
+      #FILE_ACTION_RENAMED_NEW_NAME
+    EndEnumeration
     
-    
-    Define NewList FileMonitorData.StruktureFileMonitor()
-    Define NewList FileMonitorThreads.StruktureFileMonitorThreads()
-    Define FileMonitorError.s
-    Define FileMonitorMutex.i = CreateMutex()
-    
-    Import "kernel32.lib"
-      ReadDirectoryChangesW(hDirectory.l, *lpBuffer, nbBufferLen.l, bWatchSubTree.b, dwNotifyFilter.l, *lpBytesReturned, *lpOverlapped.OVERLAPPED, 
-                            lpCompletitionRoutine)
-    EndImport
-    
-    
-    Procedure.s FileMonitorReadFile(*FileMonitorData.StruktureFileMonitor, ChangedFilename.s=#Null$)
-      Protected Filename.s, Filehandle.i, FileContent.s, filelength.i, readlength.i
-      Static *MemoryID = #NUL
-      
-      If *MemoryID = #NUL : *MemoryID = AllocateMemory(2049) : EndIf
-      If Not *MemoryID : ProcedureReturn "" : EndIf
-      FileContent = ""
-      ; Datei öffnen und ab letzter Position bis zum Ende lesen
-      Filename = *FileMonitorData\FullFilename
-      If ChangedFilename <> #Null$ : Filename = ChangedFilename : EndIf
-      Filehandle = ReadFile(#PB_Any, Filename, #PB_File_SharedRead | #PB_File_SharedWrite)
-      If Filehandle
-        filelength = Lof(Filehandle)     ; get the length of opened file
-        readlength = filelength
-        If filelength >= *FileMonitorData\FilePosition
-          FileSeek(Filehandle, *FileMonitorData\FilePosition)
-          readlength = filelength - *FileMonitorData\FilePosition
-        EndIf
-        If readlength > MemorySize(*MemoryID)
-          FreeMemory(*MemoryID)
-          *MemoryID = AllocateMemory(readlength + 2049)
-        EndIf
-        ReadData(Filehandle, *MemoryID, readlength)
-        CloseFile(Filehandle)
-        FileContent = PeekS(*MemoryID, readlength, #PB_Ascii)
-        *FileMonitorData\FilePosition = filelength
-      EndIf
-      ProcedureReturn FileContent
-    EndProcedure
-    
-    
-    Procedure FileMonitorThread(*FileMonitorThread.StruktureFileMonitorThreads)
-      Shared FileMonitorMutex.i, FileMonitorData.StruktureFileMonitor()
-      ; structure for the needed
-      Structure STRUKTURE_FILE_NOTIFY_INFORMATION
-        NextEntryOffset.l
-        Action.l
-        FileNameLength.l
-        Filename.s{512}
-      EndStructure
-      Protected *buffer = AllocateMemory(64*SizeOf(STRUKTURE_FILE_NOTIFY_INFORMATION))
-      Protected *ovlp.OVERLAPPED = AllocateMemory(SizeOf(OVERLAPPED))
-      Protected dwOffset.l=0, bytesRead.l, FileContent.s
-      Protected *pInfo.STRUKTURE_FILE_NOTIFY_INFORMATION
-      Protected Filename.s, WatchPath.s, Action.s, hDir.i
-      ; Notify events
-      Enumeration
-        #FILE_ACTION_ADDED = 1
-        #FILE_ACTION_REMOVED
-        #FILE_ACTION_MODIFIED
-        #FILE_ACTION_RENAMED_OLD_NAME
-        #FILE_ACTION_RENAMED_NEW_NAME
-      EndEnumeration
-      
-      WatchPath = *FileMonitorThread\WatchPathLower
-      hDir = CreateFile_(WatchPath, #FILE_LIST_DIRECTORY, #FILE_SHARE_READ | #FILE_SHARE_WRITE | #FILE_SHARE_DELETE, #Null, #OPEN_EXISTING, 
-                         #FILE_FLAG_BACKUP_SEMANTICS, #Null)
-      While ReadDirectoryChangesW(hDir, *buffer, MemorySize(*buffer), #True, #FILE_NOTIFY_CHANGE_FILE_NAME | #FILE_NOTIFY_CHANGE_SIZE, @bytesRead, #Null, #Null)
-        dwOffset = 0
-        Repeat
-          *pInfo = *buffer + dwOffset
-          Filename = ""
-          Filename = LCase(PeekS(@*pInfo\Filename, *pInfo\FileNameLength/2, #PB_Unicode))
-          Action = "???"
-          FileContent = ""
-          LockMutex(FileMonitorMutex)
-          ; search for Entry with my Path and the filename
-          ForEach FileMonitorData()
-            If FileMonitorData()\PathLower = WatchPath And FileMonitorData()\FilenameLower = Filename
-              FileContent = ""
-              Select *pInfo\Action
-                Case #FILE_ACTION_ADDED
-                  Action = "ADDED"
-                  FileMonitorData()\FilePosition = 0
-                Case #FILE_ACTION_MODIFIED
-                  Action = "MODIFIED"
-                  FileContent = FileMonitorReadFile(FileMonitorData())
-                Case #FILE_ACTION_REMOVED
-                  Action = "REMOVED"
-                  FileContent = " "
-                Case #FILE_ACTION_RENAMED_NEW_NAME
-                  Action = "RENAMED_NEWNAME"
-                  FileContent = FileMonitorReadFile(@FileMonitorData(), HF_Filesystem::JoinPath(GetPathPart(FileMonitorData()\FullFilename), Filename))
-                  FileMonitorData()\FilePosition = 0
-                Case #FILE_ACTION_RENAMED_OLD_NAME
-                  Action = "RENAMED_OLDNAME"
-                  FileContent = " "
-              EndSelect
-              UnlockMutex(FileMonitorMutex)
-              If FileContent <> "" : FileMonitorData()\CallbackRoutine(Action, Filename, FileContent) : EndIf
-              Break
-            EndIf
-          Next
-          If FileContent = "" : UnlockMutex(FileMonitorMutex) : EndIf
-          dwOffset + *pInfo\NextEntryOffset
-        Until *pInfo\NextEntryOffset = 0
-      Wend
-      FreeMemory(*buffer)
-      FreeMemory(*ovlp.OVERLAPPED)
-    EndProcedure 
-    
-    
-    Procedure FileMonitorAddFile(Filename.s, CallBackRoutine)
-      Shared FileMonitorData.StruktureFileMonitor(), FileMonitorThreads.StruktureFileMonitorThreads(), FileMonitorError.s, FileMonitorMutex.i
-      Protected FilePathLower.s, *Entry.StruktureFileMonitor, *Entry1.StruktureFileMonitorThreads, Gefunden.b
-      
-      FilePathLower = LCase(GetPathPart(Filename))
-      LockMutex(FileMonitorMutex)
-      FileMonitorError = ""
-      *Entry = AddElement(FileMonitorData())
-      *Entry\CallbackRoutine = CallBackRoutine
-      *Entry\FilenameLower = LCase(GetFilePart(Filename))
-      *Entry\FilePosition = FileSize(Filename)
-      If *Entry\FilePosition < 0 : *Entry\FilePosition = 0 : EndIf
-      *Entry\FullFilename = Filename
-      *Entry\PathLower = FilePathLower
-      ; Look if we already have a thread for this directory
-      Gefunden = #False
-      ForEach FileMonitorThreads()
-        If FileMonitorThreads()\WatchPathLower = FilePathLower
-          Gefunden = #True
-        EndIf
-      Next
-      If Not Gefunden
-        *Entry1 = AddElement(FileMonitorThreads())
-        *Entry1\WatchPathLower = FilePathLower
-        *Entry1\ThreadNumber = CreateThread(@FileMonitorThread(), *Entry1)
-      EndIf
-      UnlockMutex(FileMonitorMutex)
-    EndProcedure
-  CompilerEndIf
+    WatchPath = *FileMonitorThread\WatchPathLower
+    hDir = CreateFile_(WatchPath, #FILE_LIST_DIRECTORY, #FILE_SHARE_READ | #FILE_SHARE_WRITE | #FILE_SHARE_DELETE, #Null, #OPEN_EXISTING, 
+                       #FILE_FLAG_BACKUP_SEMANTICS, #Null)
+    While ReadDirectoryChangesW(hDir, *buffer, MemorySize(*buffer), #True, #FILE_NOTIFY_CHANGE_FILE_NAME | #FILE_NOTIFY_CHANGE_SIZE, @bytesRead, #Null, #Null)
+      dwOffset = 0
+      Repeat
+        *pInfo = *buffer + dwOffset
+        Filename = ""
+        Filename = LCase(PeekS(@*pInfo\Filename, *pInfo\FileNameLength/2, #PB_Unicode))
+        Action = "???"
+        FileContent = ""
+        LockMutex(FileMonitorMutex)
+        ; search for Entry with my Path and the filename
+        ForEach FileMonitorData()
+          If FileMonitorData()\PathLower = WatchPath And FileMonitorData()\FilenameLower = Filename
+            FileContent = ""
+            Select *pInfo\Action
+              Case #FILE_ACTION_ADDED
+                Action = "ADDED"
+                FileMonitorData()\FilePosition = 0
+              Case #FILE_ACTION_MODIFIED
+                Action = "MODIFIED"
+                FileContent = FileMonitorReadFile(FileMonitorData())
+              Case #FILE_ACTION_REMOVED
+                Action = "REMOVED"
+                FileContent = " "
+              Case #FILE_ACTION_RENAMED_NEW_NAME
+                Action = "RENAMED_NEWNAME"
+                FileContent = FileMonitorReadFile(@FileMonitorData(), HF_Filesystem::JoinPath(GetPathPart(FileMonitorData()\FullFilename), Filename))
+                FileMonitorData()\FilePosition = 0
+              Case #FILE_ACTION_RENAMED_OLD_NAME
+                Action = "RENAMED_OLDNAME"
+                FileContent = " "
+            EndSelect
+            UnlockMutex(FileMonitorMutex)
+            If FileContent <> "" : FileMonitorData()\CallbackRoutine(Action, Filename, FileContent) : EndIf
+            Break
+          EndIf
+        Next
+        If FileContent = "" : UnlockMutex(FileMonitorMutex) : EndIf
+        dwOffset + *pInfo\NextEntryOffset
+      Until *pInfo\NextEntryOffset = 0
+    Wend
+    FreeMemory(*buffer)
+    FreeMemory(*ovlp.OVERLAPPED)
+  EndProcedure 
   
+  
+  Procedure FileMonitorAddFile(Filename.s, CallBackRoutine)
+    Shared FileMonitorData.StruktureFileMonitor(), FileMonitorThreads.StruktureFileMonitorThreads(), FileMonitorError.s, FileMonitorMutex.i
+    Protected FilePathLower.s, *Entry.StruktureFileMonitor, *Entry1.StruktureFileMonitorThreads, Gefunden.b
+    
+    FilePathLower = LCase(GetPathPart(Filename))
+    LockMutex(FileMonitorMutex)
+    FileMonitorError = ""
+    *Entry = AddElement(FileMonitorData())
+    *Entry\CallbackRoutine = CallBackRoutine
+    *Entry\FilenameLower = LCase(GetFilePart(Filename))
+    *Entry\FilePosition = FileSize(Filename)
+    If *Entry\FilePosition < 0 : *Entry\FilePosition = 0 : EndIf
+    *Entry\FullFilename = Filename
+    *Entry\PathLower = FilePathLower
+    ; Look if we already have a thread for this directory
+    Gefunden = #False
+    ForEach FileMonitorThreads()
+      If FileMonitorThreads()\WatchPathLower = FilePathLower
+        Gefunden = #True
+      EndIf
+    Next
+    If Not Gefunden
+      *Entry1 = AddElement(FileMonitorThreads())
+      *Entry1\WatchPathLower = FilePathLower
+      *Entry1\ThreadNumber = CreateThread(@FileMonitorThread(), *Entry1)
+    EndIf
+    UnlockMutex(FileMonitorMutex)
+  EndProcedure
+
 EndModule
-; IDE Options = PureBasic 5.70 LTS (Windows - x64)
-; CursorPosition = 39
-; Folding = -----
+
+; IDE Options = PureBasic 5.71 LTS (Windows - x64)
+; CursorPosition = 67
+; FirstLine = 44
+; Folding = ----
 ; EnableXP
-; CompileSourceDirectory
