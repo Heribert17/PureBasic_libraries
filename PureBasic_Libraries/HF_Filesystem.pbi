@@ -56,8 +56,8 @@ DeclareModule HF_Filesystem
   ;     ListSemaphore = CreateSemaphore()
   ;     ListMutex = CreateMutex()
   ;     ; Create threads
-  ;     For i=0 To #MAXTHREADS
-  ;       AddElement(ThreadList()) : ThreadList() = CreateThread(@getData(), i+1)
+  ;     For i=1 To #MAXTHREADS
+  ;       AddElement(ThreadList()) : ThreadList() = CreateThread(@getData(), i)
   ;     Next i
   ;     ; walk through the directory tree
   ;     HF_Filesystem::GetDirectoryFilenamesRecursiv(#FilePath, "*.xml", XMLFiles(), ListSemaphore, ListMutex, 10000, #MaxThreads)
@@ -706,8 +706,8 @@ Module HF_Filesystem
 
 EndModule
 
-; IDE Options = PureBasic 5.71 LTS (Windows - x64)
-; CursorPosition = 67
-; FirstLine = 44
+; IDE Options = PureBasic 5.73 LTS (Windows - x64)
+; CursorPosition = 59
+; FirstLine = 35
 ; Folding = ----
 ; EnableXP

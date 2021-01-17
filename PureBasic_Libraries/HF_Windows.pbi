@@ -230,13 +230,15 @@ Module HF_Windows
     SystemTimeToFileTime_(UTCSystemTime, UTCFileTime)
     
     qDate = (PeekQ(@UTCFileTime) - 116444736000000000) / 10000000
-    Diff = qDate - Date()
+    Diff = Date() - qDate
     ProcedureReturn Diff
   EndProcedure
 
 EndModule
 
-; IDE Options = PureBasic 5.62 (Windows - x64)
-; CursorPosition = 8
+; IDE Options = PureBasic 5.73 LTS (Windows - x64)
+; CursorPosition = 78
+; FirstLine = 58
 ; Folding = --
 ; EnableXP
+; CompileSourceDirectory

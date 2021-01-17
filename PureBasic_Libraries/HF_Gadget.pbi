@@ -63,7 +63,12 @@ CompilerIf #PB_Compiler_OS = #PB_OS_Windows
     ; #CFM_BOLD 
     ; #CFM_ITALIC 
     ; #CFM_UNDERLINE 
-    ; #CFM_STRIKEOUT 
+    ; #CFM_STRIKEOUT
+    
+    ; Sorry works only on the window not on any container in that window
+    ; Declare SetWaitCursor(hWnd, WaitCursor.b=#True)
+    ; sets the cursor to WaitCursor or back to normal if WaitCursor = #False
+    ; hWnd ist the id of the window. You get it with WindowID()
     
   EndDeclareModule
   
@@ -178,13 +183,60 @@ CompilerIf #PB_Compiler_OS = #PB_OS_Windows
       format\dwEffects = Flags 
       SendMessage_(GadgetID(Gadget), #EM_SETCHARFORMAT, #SCF_SELECTION, @format) 
     EndProcedure 
-  
+    
+    ; Set the cursor
+    CompilerSelect #PB_Compiler_OS
+      CompilerCase #PB_OS_Windows
+        #CURSOR_ARROW = #IDC_ARROW
+        #CURSOR_BUSY = #IDC_WAIT
+      CompilerCase #PB_OS_MacOS
+        #CURSOR_ARROW = #kThemeArrowCursor
+        #CURSOR_BUSY = #kThemeWatchCursor
+        ImportC ""
+          SetThemeCursor(CursorType.L)
+        EndImport
+      CompilerCase #PB_OS_Linux
+        #CURSOR_ARROW = #GDK_ARROW
+        #CURSOR_BUSY = #GDK_WATCH
+        Global *Cursor.GdkCursor
+        ImportC ""
+          gtk_widget_get_window(*widget.GtkWidget)
+        EndImport
+    CompilerEndSelect
+    
+    
+    Procedure MySetCursor(hWnd.i, CursorId.i)
+      CompilerIf #PB_Compiler_OS = #PB_OS_Windows
+;         SetClassLongPtr_(hWnd, #GCL_HCURSOR, LoadCursor_(0, CursorId))
+        SetClassLong_(hWnd, #GCL_HCURSOR, #NUL)
+        SetClassLong_(hWnd, #GCL_HCURSOR, LoadCursor_(0, CursorId))
+      CompilerElseIf #PB_Compiler_OS = #PB_OS_MacOS
+        SetThemeCursor(CursorId)
+      CompilerElseIf #PB_Compiler_OS = #PB_OS_Linux
+         *Cursor= gdk_cursor_new_(CursorID)
+         If *Cursor
+            gdk_window_set_cursor_(gtk_widget_get_window(WindowID(Window)), *Cursor)
+         EndIf
+      CompilerEndIf
+    EndProcedure
+    
+    Procedure SetWaitCursor(hWnd, WaitCursor.b=#True)
+      ; sets the cursor to WaitCursor or back to normal if WaitCursor = #False
+      ; hWnd ist the id of the window. You get it with WindowID()
+      If WaitCursor
+        MySetCursor(hWnd, #CURSOR_BUSY)
+      Else
+        MySetCursor(hwnd, #CURSOR_ARROW)
+      EndIf
+    EndProcedure
+    
+
   EndModule
 CompilerEndIf
 
-; IDE Options = PureBasic 5.70 LTS (Windows - x64)
-; CursorPosition = 127
-; FirstLine = 97
-; Folding = --
+; IDE Options = PureBasic 5.73 LTS (Windows - x64)
+; CursorPosition = 68
+; FirstLine = 42
+; Folding = ---
 ; EnableXP
 ; CompileSourceDirectory
