@@ -539,6 +539,7 @@ Module HF_S3
     ProcedureReturn #True
   EndProcedure
   
+  
   Procedure downloadFile(*ConnectionParameter.sConnectionParameter, S3Filename.s, PCFilename.s, PCFilenameMetadata.s)
     ; Download s3 content to a file
     Protected outfilehandle.i, DateTime.s, Scope.s, url.s, *Value, Metadata.s, HttpReq.i, HTTPReturnCode.s, HTTPResonse.s
@@ -571,7 +572,6 @@ Module HF_S3
             If outfilehandle
               WriteData(outfilehandle, *Value, MemorySize(*Value))
               CloseFile(outfilehandle)
-              FreeMemory(*Value)
               If PCFilenameMetadata <> ""
                 outfilehandle = CreateFile(#PB_Any, PCFilenameMetadata)
                 If outfilehandle
@@ -584,11 +584,13 @@ Module HF_S3
             Else              
               *ConnectionParameter\ErrorString = "500: Can't create file: " + PCFilename
             EndIf
+            FreeMemory(*Value)
           EndIf
           Break   ; leave Retry loop
         Else
           *ConnectionParameter\ErrorString = HTTPReturnCode + ": " + HTTPResonse + ": " + url
         EndIf
+        If *value : FreeMemory(*Value) : EndIf
         If HTTPReturnCode = "404" Or HTTPReturnCode = "403"
           Break
         EndIf
@@ -598,6 +600,7 @@ Module HF_S3
       Delay(100)
     Next Retries
   EndProcedure
+  
   
   
   Procedure uploadFile(*ConnectionParameter.sConnectionParameter, PCFilename.s, S3Filename.s, Map AdditionalHeader.s())
@@ -1001,8 +1004,8 @@ CompilerIf #PB_Compiler_IsMainFile = 1
 CompilerEndIf
 
 ; IDE Options = PureBasic 5.73 LTS (Windows - x64)
-; CursorPosition = 560
-; FirstLine = 549
+; CursorPosition = 589
+; FirstLine = 550
 ; Folding = ------
 ; EnableThread
 ; EnableXP
