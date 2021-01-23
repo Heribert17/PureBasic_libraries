@@ -41,6 +41,26 @@
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ; SOFTWARE.
 ; ---------------------------------------------------------------------------------------
+;
+; This software uses expat as XML parser. Due to the license we included the expat license:
+; 
+;               License For the expat XML parser
+; 
+; Copyright (c) 1998, 1999, 2000 Thai Open Source Software Center Ltd And Clark Cooper
+; Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006 Expat maintainers.
+; 
+; Permission is hereby granted, free of charge, To any person obtaining a copy of this software And associated
+; documentation files (the 'Software'), To deal in the Software without restriction, including without limitation 
+; the rights To use, copy, modify, merge, publish, distribute, sublicense, And/Or sell copies of the Software,
+; And To permit persons To whom the Software is furnished To do so, subject To the following conditions:
+; 
+; The above copyright notice And this permission notice shall be included in all copies Or substantial portions
+; of the Software. THE SOFTWARE IS PROVIDED 'As IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+; Or IMPLIED, INCLUDING BUT Not LIMITED To THE WARRANTIES OF MERCHANTABILITY, FITNESS For A PARTICULAR PURPOSE And NONINFRINGEMENT.
+; IN NO EVENT SHALL THE AUTHORS Or COPYRIGHT HOLDERS BE LIABLE For ANY CLAIM, DAMAGES Or OTHER LIABILITY, WHETHER
+; IN AN ACTION OF CONTRACT, TORT Or OTHERWISE, ARISING FROM, OUT OF Or IN CONNECTION With THE SOFTWARE Or THE USE
+; Or OTHER DEALINGS IN THE SOFTWARE."
+; ---------------------------------------------------------------------------------------
 
 
 XIncludeFile "HF_Cipher.pbi"
@@ -131,7 +151,7 @@ DeclareModule HF_S3
   ;     #PB_DirectoryEntry_File     : This entry is a file.
   ;     #PB_DirectoryEntry_Directory: This entry is a directory.
   
-  Declare CopyFileFromS3(*ConnectionParameter.sConnectionParameter, S3Filename.s, PCFilename.s, PCFilenameMetadata.s="")
+  Declare.s CopyFileFromS3(*ConnectionParameter.sConnectionParameter, S3Filename.s, PCFilename.s)
   ; Copies a file from S3 to PCFilename, check ConnectionParameter \errormessage for errors
   ; Returns the S3 metadata of the file
   ; Parameters
@@ -308,7 +328,7 @@ Module HF_S3
   
   
   Procedure.s createSingningKey(key.s, dateStamp.s, regionName.s, serviceName.s)
-    Protected *kSecret, SingningKey.s, kDate.s, kRegion.s, kService.s, kSigning.s
+    Protected kDate.s, kRegion.s, kService.s, kSigning.s
     
     kDate = HF_Cipher::hmac_256("AWS4" + key, dateStamp)
     kRegion = HF_Cipher::hmac_256(kDate, regionName, #True)
@@ -540,10 +560,11 @@ Module HF_S3
   EndProcedure
   
   
-  Procedure downloadFile(*ConnectionParameter.sConnectionParameter, S3Filename.s, PCFilename.s, PCFilenameMetadata.s)
+  Procedure.s downloadFile(*ConnectionParameter.sConnectionParameter, S3Filename.s, PCFilename.s)
     ; Download s3 content to a file
+    ; returns the Metadata as a CR/LF separated string
     Protected outfilehandle.i, DateTime.s, Scope.s, url.s, *Value, Metadata.s, HttpReq.i, HTTPReturnCode.s, HTTPResonse.s
-    Protected Signature.s, NewMap QueryMap.s(), NewMap HeaderMap.s(), Retries.i, Progress.i
+    Protected Signature.s, NewMap QueryMap.s(), NewMap HeaderMap.s(), Retries.i, i.i, line.s, rwert.s=""
     
     DateTime = create_datetime()
     Scope = Left(DateTime, 8) + "/" + #DefaultRegion + "/s3/aws4_request"
@@ -567,25 +588,25 @@ Module HF_S3
         *Value = HTTPMemory(HttpReq)
         FinishHTTP(HttpReq)
         If HTTPReturnCode = "200"
-          If *Value
-            outfilehandle = CreateFile(#PB_Any, PCFilename)
-            If outfilehandle
+          outfilehandle = CreateFile(#PB_Any, PCFilename)
+          If outfilehandle
+            If *Value
               WriteData(outfilehandle, *Value, MemorySize(*Value))
-              CloseFile(outfilehandle)
-              If PCFilenameMetadata <> ""
-                outfilehandle = CreateFile(#PB_Any, PCFilenameMetadata)
-                If outfilehandle
-                  WriteString(outfilehandle, Metadata)
-                  CloseFile(outfilehandle)
-                Else
-                  *ConnectionParameter\ErrorString = "500: Can't create file: " + PCFilenameMetadata
-                EndIf
-              EndIf
-            Else              
-              *ConnectionParameter\ErrorString = "500: Can't create file: " + PCFilename
             EndIf
-            FreeMemory(*Value)
+            CloseFile(outfilehandle)
+          Else              
+            *ConnectionParameter\ErrorString = "500: Can't create file: " + PCFilename
           EndIf
+          FreeMemory(*Value)
+          ; Get Matadata from second line to first empty line
+          For i=1 To 10000
+            line = StringField(Metadata, i, #CRLF$)
+            If i <> 1 And line <> ""
+              rwert + Line + #CRLF$
+            ElseIf line = ""
+              Break
+            EndIf
+          Next i
           Break   ; leave Retry loop
         Else
           *ConnectionParameter\ErrorString = HTTPReturnCode + ": " + HTTPResonse + ": " + url
@@ -597,8 +618,13 @@ Module HF_S3
       Else
         *ConnectionParameter\ErrorString = "500: Request creation failed"
       EndIf
-      Delay(100)
+      If FindString(*ConnectionParameter\ErrorString, "Address already in use", #PB_String_NoCase) <> 0 ; Failed to connect to xxx Address already in use error
+        Delay(60 * 1000)  ; Wait a minute to OS freeing internal handles
+      Else
+        Delay(2000)       ; Wait 2 secondes bevor next try
+      EndIf
     Next Retries
+    ProcedureReturn rwert
   EndProcedure
   
   
@@ -865,11 +891,11 @@ Module HF_S3
   EndProcedure
   
   
-  Procedure CopyFileFromS3(*ConnectionParameter.sConnectionParameter, S3Filename.s, PCFilename.s, PCFilenameMetadata.s="")
+  Procedure.s CopyFileFromS3(*ConnectionParameter.sConnectionParameter, S3Filename.s, PCFilename.s)
     ; Copies a file from S3 to PCFilename
     ; Returns the S3 metadata of the file
     *ConnectionParameter\ErrorString = ""
-    ProcedureReturn downloadFile(*ConnectionParameter, S3Filename, PCFilename, PCFilenameMetadata)
+    ProcedureReturn downloadFile(*ConnectionParameter, S3Filename, PCFilename)
   EndProcedure
   
   
@@ -1004,8 +1030,8 @@ CompilerIf #PB_Compiler_IsMainFile = 1
 CompilerEndIf
 
 ; IDE Options = PureBasic 5.73 LTS (Windows - x64)
-; CursorPosition = 589
-; FirstLine = 550
+; CursorPosition = 623
+; FirstLine = 585
 ; Folding = ------
 ; EnableThread
 ; EnableXP

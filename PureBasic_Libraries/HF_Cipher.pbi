@@ -245,8 +245,8 @@ CompilerEndIf
 
 
 ; IDE Options = PureBasic 5.73 LTS (Windows - x64)
-; CursorPosition = 128
-; FirstLine = 93
+; CursorPosition = 156
+; FirstLine = 115
 ; Folding = --
 ; EnableXP
 ; CompileSourceDirectory
