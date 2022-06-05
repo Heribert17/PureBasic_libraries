@@ -63,6 +63,11 @@ DeclareModule HF_Cipher
   Declare.s MD5HashBase64Decoded(MD5HashString.s)
   ; Converts the MD5 Hex String into a base64 decoded string
   ; Return: The decoded MD5 String
+  
+  
+  Declare.s Base32Encoder(*Buffer, BufferSize.i, AddPadding.b=#False)
+  ; Encodes string To Base32 String.
+
 EndDeclareModule
 
 
@@ -150,18 +155,21 @@ Module HF_Cipher
   
   
   Procedure.s AESEncodeToHexString(StringToDecode.s, *AESKey, *AESVector)
-    ; Decode String to an Hexstring using AESDecode, for AESKey and AESVecotor see PublureBasic Help about AESEncode
+    ; Decode String to an Hexstring using AESDecode, for AESKey and AESVecotor see PureBasic Help about AESEncode
     ; Return: The AESDecodes String as a string of 2 Chars HEX Values
-    Protected StringMemorySize.i, i.i, outstring.s=StringToDecode, *CipheredString
+    Protected StringMemorySize.i, i.i, outstring.s=StringToDecode, *CipheredString, *utfBuffer
     
-    If Len(StringToDecode) < 16
-      StringToDecode = LSet(StringToDecode, 16, " ")
-    EndIf
-    StringMemorySize = StringByteLength(StringToDecode) + SizeOf(Character) ; Space for the string and its null terminating character
-    *CipheredString = AllocateMemory(StringMemorySize)   
-    If AESEncoder(@StringToDecode, *CipheredString, StringByteLength(StringToDecode), *AESKey, 128, *AESVector)
+    For i = 1 To 32
+      StringToDecode + Chr(i)
+      If (StringByteLength(StringToDecode, #PB_UTF8) % 16) = 0
+        Break
+      EndIf
+    Next i
+    *utfBuffer = UTF8(StringToDecode)
+    *CipheredString = AllocateMemory(MemorySize(*utfBuffer))
+    If AESEncoder(*utfBuffer, *CipheredString, MemorySize(*utfBuffer)-1, *AESKey, 128, *AESVector)
       outstring = ""
-      For i = 0 To StringByteLength(StringToDecode) - 1
+      For i = 0 To MemorySize(*utfBuffer) - 2
         outstring + RSet(Hex(PeekB(*CipheredString+i), #PB_Byte), 2, "0")
       Next i
       FreeMemory(*CipheredString)
@@ -173,17 +181,23 @@ Module HF_Cipher
   Procedure.s AESDecodeFromHexString(HexStringToEncode.s, *AESKey, *AESVector)
     ; Encodes a HEX String, AESKey and AESVector mus be the same as used by AESDEcodeToHexString
     ; Return: The encode HEX String.
-    Protected StringMemorySize.i, i.i, outstring.s, *CipheredString, *DecipheredString
+    Protected StringMemorySize.i, i.i, outstring.s, *CipheredString, *DecipheredString, Padlaenge.i
     
-    StringMemorySize = StringByteLength(HexStringToEncode) / 2 + SizeOf(Character) ; Space for the string and its null terminating character
-    *CipheredString = AllocateMemory(StringMemorySize)
-    *DecipheredString = AllocateMemory(StringMemorySize) 
+    StringMemorySize = Len(HexStringToEncode) / 2 ; Space for the string
+    *CipheredString = AllocateMemory(StringMemorySize +  1)
+    *DecipheredString = AllocateMemory(StringMemorySize +  1) 
     ; Hex to string in memory
-    For i = 0 To (Len(HexStringToEncode) / 2)   ; without -1 because of trailing \0
+    For i = 0 To StringMemorySize   ; without -1 because of trailing \0
       PokeB(*CipheredString+i, Val("$" + Mid(HexStringToEncode, i*2+1, 2)))
     Next i
-    AESDecoder(*CipheredString, *DecipheredString, Len(HexStringToEncode) / 2, *AESKey, 128, *AESVector)
-    outstring = Trim(PeekS(*DecipheredString))
+    If StringMemorySize >= 16
+      AESDecoder(*CipheredString, *DecipheredString, StringMemorySize, *AESKey, 128, *AESVector)
+      ; Das letzte Zeichen gibt die Länge des paddings an
+      Padlaenge = PeekB(*DecipheredString + StringMemorySize - 1)
+      outstring = PeekS(*DecipheredString, StringMemorySize - Padlaenge, #PB_UTF8 | #PB_ByteLength)
+    Else
+      outstring = HexStringToEncode
+    EndIf
     FreeMemory(*CipheredString)
     FreeMemory(*DecipheredString)
     ProcedureReturn outstring
@@ -205,6 +219,128 @@ Module HF_Cipher
     FreeMemory(*buffer)
     ProcedureReturn rwert
   EndProcedure
+  
+  
+  ; Original from: http://www.herongyang.com/Encoding/Base32-Bitpedia-Java-Implementation.html
+  ;
+  ;     private Static final String base32Chars =
+  ;         "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  ;     private Static final int[] base32Lookup =
+  ;     { 0xFF,0xFF,0x1A,0x1B,0x1C,0x1D,0x1E,0x1F,
+  ;       0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+  ;       0xFF,0x00,0x01,0x02,0x03,0x04,0x05,0x06,
+  ;       0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,
+  ;       0x0F,0x10,0x11,0x12,0x13,0x14,0x15,0x16,
+  ;       0x17,0x18,0x19,0xFF,0xFF,0xFF,0xFF,0xFF,
+  ;       0xFF,0x00,0x01,0x02,0x03,0x04,0x05,0x06,
+  ;       0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,
+  ;       0x0F,0x10,0x11,0x12,0x13,0x14,0x15,0x16,
+  ;       0x17,0x18,0x19,0xFF,0xFF,0xFF,0xFF,0xFF
+  ;     };
+  ; 
+  ;     /**
+  ;      * Encodes byte Array To Base32 String.
+  ;      *
+  ;      * @param bytes Bytes To encode.
+  ;      * @return Encoded byte Array <code>bytes</code> As a String.
+  ;      *
+  ;      */
+  ;     Static public String encode(final byte[] bytes) {
+  ;         int i = 0, index = 0, digit = 0;
+  ;         int currByte, nextByte;
+  ;         StringBuffer base32
+  ;            = new StringBuffer((bytes.length + 7) * 8 / 5);
+  ; 
+  ;         While (i < bytes.length) {
+  ;             currByte = (bytes[i] >= 0) ? bytes[i] : (bytes[i] + 256);
+  ; 
+  ;             /* Is the current digit going To span a byte boundary? */
+  ;             If (index > 3) {
+  ;                 If ((i + 1) < bytes.length) {
+  ;                     nextByte = (bytes[i + 1] >= 0)
+  ;                        ? bytes[i + 1] : (bytes[i + 1] + 256);
+  ;                 } Else {
+  ;                     nextByte = 0;
+  ;                 }
+  ; 
+  ;                 digit = currByte & (0xFF >> index);
+  ;                 index = (index + 5) % 8;
+  ;                 digit <<= index;
+  ;                 digit |= nextByte >> (8 - index);
+  ;                 i++;
+  ;             } Else {
+  ;                 digit = (currByte >> (8 - (index + 5))) & 0x1F;
+  ;                 index = (index + 5) % 8;
+  ;                 If (index == 0)
+  ;                     i++;
+  ;             }
+  ;             base32.append(base32Chars.charAt(digit));
+  ;         }
+  ; 
+  ;         Return base32.toString();
+  ;     }
+  
+  Define base32chars.s = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+  DataSection
+    base32Lookup:
+      Data.b   $FF, $FF, $1A, $1B, $1C, $1D, $1E, $1F,
+               $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+               $FF, $00, $01, $02, $03, $04, $05, $06,
+               $07, $08, $09, $0A, $0B, $0C, $0D, $0E,
+               $0F, $10, $11, $12, $13, $14, $15, $16,
+               $17, $18, $19, $FF, $FF, $FF, $FF, $FF,
+               $FF, $00, $01, $02, $03, $04, $05, $06,
+               $07, $08, $09, $0A, $0B, $0C, $0D, $0E,
+               $0F, $10, $11, $12, $13, $14, $15, $16,
+               $17, $18, $19, $FF, $FF, $FF, $FF, $FF
+  
+  EndDataSection
+  
+  
+  Procedure.s Base32Encoder(*Buffer, BufferSize.i, AddPadding.b=#False)
+    ; Encodes string To Base32 String.
+    Shared base32chars.s
+    Protected i.i=0, index.i=0, digit.i=0, currByte.i, nextByte.i, base32.s, byte.i
+    
+    While i < BufferSize
+      byte = PeekB(*Buffer+i)
+      If byte >= 0
+        currByte = byte
+      Else
+        currByte = byte + 256
+      EndIf
+      ; Is the current digit going To span a byte boundary?
+      If index > 3
+        If i + 1 < BufferSize
+          byte = PeekB(*Buffer+i+1)
+          If byte >= 0
+            nextByte = byte
+          Else
+            nextByte = byte + 256
+          EndIf
+        Else
+          nextByte = 0
+        EndIf
+        digit = currByte & ($ff >> index)
+        index = (index + 5) % 8
+        digit << index
+        digit | nextByte >> (8 - index)
+        i + 1
+      Else
+        digit = (currByte >> (8 - (index + 5))) & $1f
+        index = (index + 5) % 8
+        If index = 0
+          i + 1
+        EndIf
+      EndIf
+      base32 + Mid(base32chars, digit+1, 1)   ; + 1 because Purbasic starts with index 1 and not 0 as java
+    Wend
+    If AddPadding
+      base32 = LSet(base32, Len(base32) + (8 - (Len(base32) % 8)), "=")
+    EndIf
+    ProcedureReturn base32
+  EndProcedure
+    
 
 EndModule
 
@@ -245,8 +381,8 @@ CompilerEndIf
 
 
 ; IDE Options = PureBasic 5.73 LTS (Windows - x64)
-; CursorPosition = 156
-; FirstLine = 115
+; CursorPosition = 196
+; FirstLine = 173
 ; Folding = --
 ; EnableXP
 ; CompileSourceDirectory

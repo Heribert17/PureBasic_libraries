@@ -3,7 +3,7 @@
 ; Some Windows functions
 ;
 ; Author:  Heribert Füchtenhans
-; Version: 2.0
+; Version: 2021.04.22
 ; OS:      Windows
 ;
 ; Requirements: Windows 8 and above
@@ -66,7 +66,13 @@ DeclareModule HF_Windows
   Declare.i GetUTCTime(time.i)
   ; Windows only
   ; return: time changed from local to UTC time
-EndDeclareModule
+  
+  Declare.l GetNamePID(ProcessName.s)
+  ; Retrieve the ProcessID according to exe name, note:if many runing exe share the same name,
+  ; this would retrieve the first exe PID that was found
+  ; Return: PID if found, else -1
+  
+  EndDeclareModule
 
 
 
@@ -192,7 +198,6 @@ Module HF_Windows
   EndProcedure  
   
   
-  
   Prototype Proto_TzSpecificLocalTimeToSystemTime(*p, *Localtime.SYSTEMTIME, *SystemTime.SYSTEMTIME)
 
   Procedure.i GetUTCTime(time.i)
@@ -233,12 +238,44 @@ Module HF_Windows
     Diff = Date() - qDate
     ProcedureReturn Diff
   EndProcedure
+  
+  
+  Procedure.l GetNamePID(ProcessName.s)
+    ; Retrieve the ProcessID according to exe name, note:if many runing exe share the same name,
+    ; this would retrieve the first exe PID that was found
+    ; Return: PID if found, else -1
+    Protected HSnap.l, Prec.processentry32, result.l=-1
+    
+    HSnap = CreateToolhelp32Snapshot_(#TH32CS_SNAPPROCESS,0)
+    If HSnap = #INVALID_HANDLE_VALUE 
+      ProcedureReturn result
+    EndIf
+    Prec\dwSize = SizeOf(prec)
+    If Not Process32First_(HSnap, Prec)
+      ProcedureReturn result
+    EndIf
+    Repeat
+      If LCase(GetFilePart(PeekS(@Prec\szexefile))) = LCase(ProcessName)
+        result = Prec\th32ProcessID
+        Break
+      EndIf
+    Until Not Process32Next_(HSnap,Prec)
+    CloseHandle_(HSnap)
+    ProcedureReturn result
+  EndProcedure
 
 EndModule
 
+
+CompilerIf #PB_Compiler_IsMainFile
+  Define date.i
+  Debug "Date: " + FormatDate("%dd.%mm.%yyyy %hh:%ii:%ss", Date())
+  Debug HF_Windows::GetNamePID("Thunderbird.exe")
+
+CompilerEndIf
+
 ; IDE Options = PureBasic 5.73 LTS (Windows - x64)
-; CursorPosition = 78
-; FirstLine = 58
+; CursorPosition = 5
 ; Folding = --
 ; EnableXP
 ; CompileSourceDirectory

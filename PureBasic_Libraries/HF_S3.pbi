@@ -412,7 +412,6 @@ Module HF_S3
     Debug("--- TestCreateSignature End -----------------------------------------------------")
   EndProcedure
   
-  
   ; Set S3Connection\HTTPReturnCode und S3Connetion\HTTPErrormessage
   ; Return: the http response text or "" if we didn't get a 200 response
   Procedure.s sendGetRequest(*mappointer.sS3DirectoryExamineParameter, Map QueryParameterMap.s())
@@ -597,7 +596,6 @@ Module HF_S3
           Else              
             *ConnectionParameter\ErrorString = "500: Can't create file: " + PCFilename
           EndIf
-          FreeMemory(*Value)
           ; Get Matadata from second line to first empty line
           For i=1 To 10000
             line = StringField(Metadata, i, #CRLF$)
@@ -607,6 +605,7 @@ Module HF_S3
               Break
             EndIf
           Next i
+          If *Value : FreeMemory(*Value) : EndIf
           Break   ; leave Retry loop
         Else
           *ConnectionParameter\ErrorString = HTTPReturnCode + ": " + HTTPResonse + ": " + url
@@ -653,7 +652,7 @@ Module HF_S3
     ; Calculate hash values
     UseMD5Fingerprint()
     MD5Hash = Fingerprint(*Buffer, filelength, #PB_Cipher_MD5)
-    Debug MD5Hash
+;    Debug MD5Hash
     UseSHA2Fingerprint()
     Payload = Fingerprint(*Buffer, filelength, #PB_Cipher_SHA2, 256)
     S3Filename = URIEncode(S3Filename, #False)
@@ -664,6 +663,9 @@ Module HF_S3
       HeaderMap("x-amz-content-sha256") = Payload
       HeaderMap("x-amz-date") = DateTime
       HeaderMap("x-amz-storage-class") = "REDUCED_REDUNDANCY"
+      ForEach AdditionalHeader()
+        HeaderMap(MapKey(AdditionalHeader())) = AdditionalHeader()
+      Next
       Signature = createSignature("PUT", \host, "/" + \Bucket + "/" + S3Filename, QueryMap(), HeaderMap(), Payload,  DateTime, Scope, 
                                   \SecretKey, #DefaultRegion)
       HeaderMap("Authorization") = "AWS4-HMAC-SHA256 Credential=" + \AccessKey + "/" + scope + 
@@ -692,8 +694,7 @@ Module HF_S3
     ProcedureReturn
   EndProcedure
   
-  
-  Procedure deleteaFile(*ConnectionParameter.sConnectionParameter, S3Filename.s)
+  Procedure deleteaFile_old(*ConnectionParameter.sConnectionParameter, S3Filename.s)
     ; Delete an S3 file
     Protected DateTime.s, Scope.s, url.s, HttpReq.i, HTTPReturnCode.s
     Protected Signature.s, NewMap QueryMap.s(), NewMap HeaderMap.s()
@@ -703,21 +704,81 @@ Module HF_S3
     S3Filename = URIEncode(S3Filename, #False)
     With *ConnectionParameter
       HeaderMap("host") = \host
+      HeaderMap("x-amz-content-sha256") = #EmptyFilePayloadHash
       HeaderMap("x-amz-date") = DateTime
       Signature = createSignature("DELETE", \host, "/" + \Bucket + "/" + S3Filename, QueryMap(), HeaderMap(), #EmptyFilePayloadHash, 
                                   DateTime, Scope, \SecretKey, #DefaultRegion)
-      HeaderMap("Authorization") = "AWS4-HMAC-SHA256 Credential=" + \AccessKey + "/" + scope + ",SignedHeaders=host;x-amz-date,Signature=" + Signature
+      HeaderMap("Authorization") = "AWS4-HMAC-SHA256 Credential=" + \AccessKey + "/" + scope + ",SignedHeaders=host;x-amz-content-sha256;x-amz-date" + 
+                                   ",Signature=" + Signature
       url = "http://" + \host + ":" + \port + "/" + \Bucket + "/" + S3Filename
     EndWith
     HttpReq = HTTPRequest(#PB_HTTP_Delete, url, "", #PB_HTTP_NoSSLCheck, HeaderMap())
     If HttpReq
       HTTPReturnCode = HTTPInfo(HttpReq, #PB_HTTP_StatusCode)
-      If HTTPReturnCode <> "200" And HTTPReturnCode <> "204"    ; 204 = No content, an empty file
+      If HTTPReturnCode <> "204" And HTTPReturnCode <> "200"    ; 204 = deleted
         *ConnectionParameter\ErrorString = GetHTTPResponseError(HttpReq)
       EndIf
       FinishHTTP(HttpReq)
     Else
       *ConnectionParameter\ErrorString = "500: Request creation failed"
+    EndIf
+  EndProcedure
+  
+  
+  Procedure deleteaFile(*ConnectionParameter.sConnectionParameter, S3Filename.s)
+    ; Delete an S3 file
+    Protected DateTime.s, Scope.s, url.s, HttpReq.i, HTTPReturnCode.s
+    Protected Signature.s, NewMap QueryMap.s(), NewMap HeaderMap.s(), Output.s=""
+    Protected ConnectionID.i, ConnectionData.s, ClientEvent.i, *Buffer, receivestring.s
+    
+    DateTime = create_datetime()
+    Scope = Left(DateTime, 8) + "/" + #DefaultRegion + "/s3/aws4_request"
+    S3Filename = URIEncode(S3Filename, #False)
+    With *ConnectionParameter
+      HeaderMap("host") = \host
+      HeaderMap("x-amz-content-sha256") = #EmptyFilePayloadHash
+      HeaderMap("x-amz-date") = DateTime
+      Signature = createSignature("DELETE", \host, "/" + \Bucket + "/" + S3Filename, QueryMap(), HeaderMap(), #EmptyFilePayloadHash, 
+                                  DateTime, Scope, \SecretKey, #DefaultRegion)
+      HeaderMap("Authorization") = "AWS4-HMAC-SHA256 Credential=" + \AccessKey + "/" + scope + ",SignedHeaders=host;x-amz-content-sha256;x-amz-date" + 
+                                   ",Signature=" + Signature
+      url = "http://" + \host + ":" + \port + "/" + \Bucket + "/" + S3Filename
+    EndWith
+    ; use direct http because of memory leak in HTTPRequest
+    ConnectionID = OpenNetworkConnection(*ConnectionParameter\Host, Val(*ConnectionParameter\Port))
+    If ConnectionID
+      ConnectionData = "DELETE /" + *ConnectionParameter\Bucket + "/" + S3Filename + " HTTP/1.1" + #CRLF$
+      ConnectionData + "Host: " + HeaderMap("host") + #CRLF$
+      ConnectionData + "x-amz-content-sha256: " + #EmptyFilePayloadHash + #CRLF$
+      ConnectionData + "x-amz-date: " + HeaderMap("x-amz-date") + #CRLF$
+      ConnectionData + "Authorization: " + HeaderMap("Authorization") + #CRLF$
+      ConnectionData + #CRLF$
+      ConnectionData + #CRLF$
+;       Debug ConnectionData + "-----------------------"
+      SendNetworkString(ConnectionID, ConnectionData, #PB_Ascii)
+      ; Wait for Data
+      *Buffer = AllocateMemory(2048)
+      receivestring = ""
+      While #True
+        ClientEvent = NetworkClientEvent(ConnectionID)
+        If ClientEvent = #PB_NetworkEvent_Data
+          ReceiveNetworkData(ConnectionID, *Buffer, 2048)
+          receivestring + PeekS(*Buffer, 2048, #PB_Ascii)
+        ElseIf receivestring <> ""
+          Break
+        Else
+          Delay(2)
+        EndIf
+      Wend
+      FreeMemory(*Buffer)
+      CloseNetworkConnection(ConnectionID)
+;       Debug receivestring
+      HTTPReturnCode = StringField(receivestring, 2, " ")
+      If HTTPReturnCode <> "204" ; And HTTPReturnCode <> "200"    ; 204 = deleted
+        *ConnectionParameter\ErrorString = StringField(receivestring, 1,  #CRLF$)
+      EndIf
+    Else
+      *ConnectionParameter\ErrorString = "500: Can't create connection to " + *ConnectionParameter\Host
     EndIf
   EndProcedure
 
@@ -749,7 +810,7 @@ Module HF_S3
     ; Save Parameter
     *mappointer = AddMapElement(S3DirectoryExamineParamter(), Str(connectionNr))
     If *mappointer = 0
-      *ConnectionParameter\ErrorString = "Internal error, couldn'd add additional Memeory."
+      *ConnectionParameter\ErrorString = "Internal error, couldn'd add additional Memory."
       ProcedureReturn 0
     EndIf
     With *mappointer
@@ -1030,8 +1091,8 @@ CompilerIf #PB_Compiler_IsMainFile = 1
 CompilerEndIf
 
 ; IDE Options = PureBasic 5.73 LTS (Windows - x64)
-; CursorPosition = 623
-; FirstLine = 585
+; CursorPosition = 785
+; FirstLine = 737
 ; Folding = ------
 ; EnableThread
 ; EnableXP
